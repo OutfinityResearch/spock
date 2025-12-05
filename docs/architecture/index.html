@@ -1,0 +1,178 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Architecture – Spock GOS</title>
+  <link rel="stylesheet" href="../reference/style.css">
+</head>
+<body>
+  <div class="page">
+  <div class="nav-header">
+    <h1>Spock Architecture</h1>
+    <small>
+      <a href="../index.html">Home</a> ·
+      <a href="index.html">Architecture</a> ·
+      <a href="../syntax/index.html">Syntax</a> ·
+      <a href="../api/index.html">APIs</a> ·
+      <a href="../wiki/index.html">Wiki</a> ·
+      <a href="../specs/matrix.html">Specs</a>
+    </small>
+  </div>
+
+  <h2>System Overview</h2>
+  <p>Spock is organized as a layered system where each layer depends only on the layers below it. This ensures testability, modularity, and clear separation of concerns.</p>
+
+  <div class="architecture-diagram">
+    <pre>
+┌─────────────────────────────────────────────────────────────┐
+│                      Public API Layer                        │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │
+│  │EngineFactory│  │ SessionApi  │  │   VizApi    │          │
+│  └─────────────┘  └─────────────┘  └─────────────┘          │
+├─────────────────────────────────────────────────────────────┤
+│                    Session & Theory Layer                    │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │
+│  │SessionManager│ │ TheoryStore │  │TheoryVersion│          │
+│  └─────────────┘  └─────────────┘  └─────────────┘          │
+├─────────────────────────────────────────────────────────────┤
+│                      DSL Engine Layer                        │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │
+│  │  Tokenizer  │  │   Parser    │  │  Executor   │          │
+│  └─────────────┘  └─────────────┘  └─────────────┘          │
+│                    ┌─────────────┐                           │
+│                    │ DepGraph    │                           │
+│                    └─────────────┘                           │
+├─────────────────────────────────────────────────────────────┤
+│                       Kernel Layer                           │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │
+│  │ VectorSpace │  │PrimitiveOps │  │NumericKernel│          │
+│  └─────────────┘  └─────────────┘  └─────────────┘          │
+├─────────────────────────────────────────────────────────────┤
+│                      Support Layer                           │
+│  ┌─────────────┐  ┌─────────────┐                           │
+│  │   Config    │  │ TraceLogger │                           │
+│  └─────────────┘  └─────────────┘                           │
+└─────────────────────────────────────────────────────────────┘
+    </pre>
+  </div>
+
+  <h2>Layer Descriptions</h2>
+
+  <h3>Kernel Layer</h3>
+  <p>The foundation of Spock. Manages hypervector storage and provides primitive geometric operations.</p>
+  <table class="matrix-table">
+    <tr>
+      <td><strong>VectorSpace</strong></td>
+      <td>Creates and manages Float32Array hypervectors. Provides <code>createVector</code>, <code>cloneVector</code>, <code>dot</code>, <code>norm</code>, <code>normalise</code>.</td>
+    </tr>
+    <tr>
+      <td><strong>PrimitiveOps</strong></td>
+      <td>Implements kernel verbs: <code>Add</code>, <code>Bind</code>, <code>Negate</code>, <code>Distance</code>, <code>Move</code>, <code>Modulate</code>.</td>
+    </tr>
+    <tr>
+      <td><strong>NumericKernel</strong></td>
+      <td>Handles numeric values with units: <code>AddNumeric</code>, <code>MulNumeric</code>, <code>DivNumeric</code>, <code>AttachUnit</code>.</td>
+    </tr>
+  </table>
+
+  <h3>DSL Engine Layer</h3>
+  <p>Parses and executes SpockDSL scripts with dependency-aware topological evaluation.</p>
+  <table class="matrix-table">
+    <tr>
+      <td><strong>Tokenizer</strong></td>
+      <td>Splits DSL text into tokens, strips comments, tracks line numbers for error reporting.</td>
+    </tr>
+    <tr>
+      <td><strong>Parser</strong></td>
+      <td>Converts tokens to AST. Validates macro headers, statement forms, and SSA discipline.</td>
+    </tr>
+    <tr>
+      <td><strong>DependencyGraph</strong></td>
+      <td>Builds DAGs from statement references and computes topological execution order.</td>
+    </tr>
+    <tr>
+      <td><strong>Executor</strong></td>
+      <td>Executes scripts and macros, dispatches to kernel operations, produces DSL traces.</td>
+    </tr>
+  </table>
+
+  <h3>Session & Theory Layer</h3>
+  <p>Manages persistent theories and temporary sessions with symbol resolution.</p>
+  <table class="matrix-table">
+    <tr>
+      <td><strong>TheoryStore</strong></td>
+      <td>Loads/saves theories from <code>.spock/theories/</code> folder. Handles persistence and metadata.</td>
+    </tr>
+    <tr>
+      <td><strong>TheoryVersioning</strong></td>
+      <td>Implements <code>BranchTheory</code> and <code>MergeTheory</code> for in-memory theory versioning.</td>
+    </tr>
+    <tr>
+      <td><strong>SessionManager</strong></td>
+      <td>Creates sessions, manages symbol tables, handles theory overlays via <code>UseTheory</code>.</td>
+    </tr>
+  </table>
+
+  <h3>Public API Layer</h3>
+  <p>External interface for applications, LLMs, and visualization clients.</p>
+  <table class="matrix-table">
+    <tr>
+      <td><strong>EngineFactory</strong></td>
+      <td>Main entry point: <code>createSpockEngine(options)</code>. Wires up configuration and default theories.</td>
+    </tr>
+    <tr>
+      <td><strong>SessionApi</strong></td>
+      <td>High-level methods: <code>learn</code>, <code>ask</code>, <code>prove</code>, <code>explain</code>, <code>plan</code>, <code>solve</code>, <code>summarise</code>.</td>
+    </tr>
+    <tr>
+      <td><strong>VizApi</strong></td>
+      <td>HTTP/WebSocket endpoints for concept projections and reasoning trajectory visualization.</td>
+    </tr>
+  </table>
+
+  <h2>Data Flow</h2>
+  <ol>
+    <li><strong>Input:</strong> DSL script arrives via <code>SessionApi</code> method</li>
+    <li><strong>Parse:</strong> Tokenizer → Parser → AST</li>
+    <li><strong>Analyze:</strong> DependencyGraph builds DAG, computes topological order</li>
+    <li><strong>Execute:</strong> Executor processes statements in order, calls kernel ops</li>
+    <li><strong>Trace:</strong> TraceLogger records each step for explainability</li>
+    <li><strong>Output:</strong> Results + DSL trace returned to caller</li>
+  </ol>
+
+  <h2>Related Specifications</h2>
+  <ul>
+    <li><a href="../specs/DS_map.md">DS – Design Specification Map</a></li>
+    <li><a href="../specs/src/kernel/vectorSpace.js.md">DS VectorSpace</a></li>
+    <li><a href="../specs/src/dsl/executor.js.md">DS Executor</a></li>
+    <li><a href="../specs/src/api/engineFactory.js.md">DS EngineFactory</a></li>
+  </ul>
+
+  <style>
+    .architecture-diagram pre {
+      background: #f5f5f5;
+      padding: 20px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .matrix-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+    }
+    .matrix-table td {
+      border: 1px solid #ddd;
+      padding: 12px;
+      vertical-align: top;
+    }
+    .matrix-table td:first-child {
+      width: 150px;
+      background: #f5f5f5;
+      font-weight: bold;
+    }
+  </style>
+  </div>
+</body>
+</html>

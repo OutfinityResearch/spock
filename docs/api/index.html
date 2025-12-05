@@ -1,0 +1,182 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Public APIs – Spock GOS</title>
+  <link rel="stylesheet" href="../reference/style.css">
+</head>
+<body>
+  <div class="page">
+  <div class="nav-header">
+    <h1>Spock Public APIs</h1>
+    <small>
+      <a href="../index.html">Home</a> ·
+      <a href="../architecture/index.html">Architecture</a> ·
+      <a href="../syntax/index.html">Syntax</a> ·
+      <a href="index.html">APIs</a> ·
+      <a href="../wiki/index.html">Wiki</a> ·
+      <a href="../specs/matrix.html">Specs</a>
+    </small>
+  </div>
+
+  <h2>Overview</h2>
+  <p>Spock exposes a simple API for creating engines, managing sessions, and executing DSL scripts. All interactions return explainable DSL traces.</p>
+
+  <h2>Engine Factory</h2>
+
+  <h3><code>createSpockEngine(options)</code></h3>
+  <p>Creates a new Spock engine instance.</p>
+
+  <pre><code>const engine = createSpockEngine({
+  workingFolder: '.spock',      // Theory storage location
+  dimensions: 512,               // Vector dimensions
+  defaultTheories: ['BasicLogic'], // Theories to preload
+  logLevel: 'summary'            // 'silent' | 'summary' | 'full'
+});</code></pre>
+
+  <h4>Engine Methods</h4>
+  <table class="matrix-table">
+    <tr><td><code>createSession()</code></td><td>Create a new reasoning session</td></tr>
+    <tr><td><code>loadTheory(name)</code></td><td>Load a theory from disk</td></tr>
+    <tr><td><code>listTheories()</code></td><td>List available theories</td></tr>
+    <tr><td><code>getConfig()</code></td><td>Get current configuration</td></tr>
+    <tr><td><code>shutdown()</code></td><td>Clean up resources</td></tr>
+  </table>
+
+  <h2>Session API</h2>
+
+  <h3><code>createSessionApi(session)</code></h3>
+  <p>Creates a high-level API wrapper around a session.</p>
+
+  <pre><code>const session = engine.createSession();
+const api = createSessionApi(session);</code></pre>
+
+  <h4>Session Methods</h4>
+  <p>All methods accept a DSL script and return an <code>ApiResult</code>:</p>
+
+  <table class="matrix-table">
+    <tr><td><code>learn(script)</code></td><td>Ingest facts and definitions into the session</td></tr>
+    <tr><td><code>ask(script)</code></td><td>Query for truth values and answers</td></tr>
+    <tr><td><code>prove(script)</code></td><td>Construct formal proofs with traces</td></tr>
+    <tr><td><code>explain(script)</code></td><td>Generate explanations for conclusions</td></tr>
+    <tr><td><code>plan(script)</code></td><td>Generate action sequences for goals</td></tr>
+    <tr><td><code>solve(script)</code></td><td>Find constraint satisfaction solutions</td></tr>
+    <tr><td><code>summarise(script)</code></td><td>Create summarised concepts</td></tr>
+  </table>
+
+  <h3>ApiResult Structure</h3>
+  <pre><code>{
+  success: boolean,           // Did execution complete?
+  symbols: Map&lt;string, Value&gt;, // All declared symbols
+  scores: {
+    truth: number,            // Truth degree [0, 1]
+    confidence: number        // Confidence level
+  },
+  trace: DSLTrace,            // Execution trace
+  dslOutput: string           // Replayable DSL script
+}</code></pre>
+
+  <h2>Usage Examples</h2>
+
+  <h3>Basic Learning and Asking</h3>
+  <pre><code>// Learn some facts
+api.learn(`
+  @f1 Socrates Is Human
+  @f2 Humans Are Mortal
+`);
+
+// Ask a question
+const result = api.ask(`
+  @query Socrates Is Mortal
+  @eval query Evaluate Truth
+`);
+
+console.log(result.scores.truth); // ~1.0
+console.log(result.dslOutput);    // Can replay this script</code></pre>
+
+  <h3>Using Theories</h3>
+  <pre><code>// Load and use a theory
+api.learn(`
+  @usePhysics local UseTheory GravityTheory
+
+  @massLit 10 HasNumericValue 10
+  @mass massLit AttachUnit kg
+
+  @gLit 9.8 HasNumericValue 9.8
+  @g gLit AttachUnit m_per_s2
+
+  @force mass ComputeForce g
+`);</code></pre>
+
+  <h3>Planning</h3>
+  <pre><code>const plan = api.plan(`
+  @usePlan local UseTheory LinearPlanning
+
+  @start RobotAt Home
+  @goal CupAt Table
+
+  @myPlan start Plan goal
+`);
+
+// plan.dslOutput contains the step sequence</code></pre>
+
+  <h2>Error Handling</h2>
+  <p>Errors are returned in the ApiResult with <code>success: false</code>:</p>
+
+  <pre><code>const result = api.ask(`@invalid syntax here`);
+
+if (!result.success) {
+  console.error(result.error.message);
+  console.error(result.error.line); // Line number
+}</code></pre>
+
+  <h2>Explainability</h2>
+  <p>Every result includes a DSL trace that can be replayed:</p>
+
+  <pre><code>// Get the trace
+const trace = result.trace;
+
+// Convert to replayable script
+const script = result.dslOutput;
+
+// Re-execute to verify
+const verified = api.learn(script);
+// Should produce identical results</code></pre>
+
+  <h2>Related Specifications</h2>
+  <ul>
+    <li><a href="../specs/FS.md#fs-06">FS-06: Public API</a></li>
+    <li><a href="../specs/FS.md#fs-07">FS-07: Explainable Outputs</a></li>
+    <li><a href="../specs/src/api/engineFactory.js.md">DS EngineFactory</a></li>
+    <li><a href="../specs/src/api/sessionApi.js.md">DS SessionApi</a></li>
+  </ul>
+
+  <style>
+    .matrix-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+    }
+    .matrix-table td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      vertical-align: top;
+    }
+    .matrix-table td:first-child {
+      width: 200px;
+      background: #f5f5f5;
+      font-family: monospace;
+    }
+    pre {
+      background: #f5f5f5;
+      padding: 15px;
+      border-radius: 5px;
+      overflow-x: auto;
+    }
+    code {
+      font-family: 'Consolas', 'Monaco', monospace;
+    }
+  </style>
+  </div>
+</body>
+</html>

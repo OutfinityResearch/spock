@@ -1,0 +1,156 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Quick Wiki – Spock GOS</title>
+  <link rel="stylesheet" href="../reference/style.css">
+</head>
+<body>
+  <div class="page">
+  <div class="nav-header">
+    <h1>Spock Quick Wiki</h1>
+    <small>
+      <a href="../index.html">Home</a> ·
+      <a href="../architecture/index.html">Architecture</a> ·
+      <a href="../syntax/index.html">Syntax</a> ·
+      <a href="../api/index.html">APIs</a> ·
+      <a href="index.html">Wiki</a> ·
+      <a href="../specs/matrix.html">Specs</a>
+    </small>
+  </div>
+
+  <h2>Glossary of Terms</h2>
+
+  <div class="wiki-entry" id="hypervector">
+    <h3>Hypervector</h3>
+    <p>A high-dimensional vector (typically 512+ dimensions) used to represent concepts, facts, and states in the geometric space. Implemented as <code>Float32Array</code> in JavaScript.</p>
+    <p><strong>Related:</strong> <a href="../architecture/index.html">Architecture</a>, <a href="../specs/src/kernel/vectorSpace.js.md">VectorSpace DS</a></p>
+  </div>
+
+  <div class="wiki-entry" id="spockdsl">
+    <h3>SpockDSL</h3>
+    <p>The domain-specific language for Spock. Every statement has the form <code>@varName subject verb object</code>. Supports theories, verbs, and sessions as macro types.</p>
+    <p><strong>Related:</strong> <a href="../syntax/index.html">Syntax Reference</a>, <a href="../specs/FS.md#fs-03">FS-03</a></p>
+  </div>
+
+  <div class="wiki-entry" id="theory">
+    <h3>Theory</h3>
+    <p>A named collection of facts and verb definitions that can be persisted to disk and reused across sessions. Defined using <code>@Name theory begin ... end</code> syntax.</p>
+    <p><strong>Related:</strong> <a href="../syntax/index.html#theory-macro">Syntax</a>, <a href="../specs/FS.md#fs-04">FS-04</a></p>
+  </div>
+
+  <div class="wiki-entry" id="session">
+    <h3>Session</h3>
+    <p>A temporary reasoning context that overlays theories and hosts local facts. Session variables are discarded at end unless persisted with <code>Remember</code>.</p>
+    <p><strong>Related:</strong> <a href="../api/index.html#session-api">Session API</a>, <a href="../specs/src/session/sessionManager.js.md">SessionManager DS</a></p>
+  </div>
+
+  <div class="wiki-entry" id="verb">
+    <h3>Verb</h3>
+    <p>A binary relation between subject and object. Can be a kernel verb (geometric primitive), logical verb, or user-defined verb macro.</p>
+    <p><strong>Categories:</strong></p>
+    <ul>
+      <li><strong>Kernel:</strong> Add, Bind, Negate, Distance, Move, Modulate</li>
+      <li><strong>Numeric:</strong> AddNumeric, MulNumeric, AttachUnit</li>
+      <li><strong>Logical:</strong> Implies, And, Or, Evaluate</li>
+      <li><strong>Theory:</strong> UseTheory, Remember, BranchTheory</li>
+    </ul>
+    <p><strong>Related:</strong> <a href="../syntax/index.html#kernel-verbs">Syntax</a>, <a href="../specs/FS.md#fs-02">FS-02</a></p>
+  </div>
+
+  <div class="wiki-entry" id="ssa">
+    <h3>SSA (Static Single Assignment)</h3>
+    <p>Inside a macro, each <code>@name</code> can only be declared once. This enables dependency analysis and deterministic execution order.</p>
+    <p><strong>Related:</strong> <a href="../specs/URS.md#urs-004">URS-004</a></p>
+  </div>
+
+  <div class="wiki-entry" id="topological-evaluation">
+    <h3>Topological Evaluation</h3>
+    <p>Statements in a macro are executed in dependency order (topologically sorted), not textual order. Textual order is only a tie-breaker.</p>
+    <p><strong>Related:</strong> <a href="../specs/src/dsl/dependencyGraph.js.md">DependencyGraph DS</a></p>
+  </div>
+
+  <div class="wiki-entry" id="overlay">
+    <h3>Overlay (Theory Overlay)</h3>
+    <p>A session can overlay multiple theories using <code>UseTheory</code>. Symbols are resolved by checking local → overlays (LIFO) → global.</p>
+    <p><strong>Related:</strong> <a href="../specs/FS.md#fs-04">FS-04</a></p>
+  </div>
+
+  <div class="wiki-entry" id="dsl-trace">
+    <h3>DSL Trace</h3>
+    <p>A record of all executed statements that can be converted to a replayable DSL script (<code>DSL_OUTPUT</code>). Enables explainability and verification.</p>
+    <p><strong>Related:</strong> <a href="../specs/src/logging/traceLogger.js.md">TraceLogger DS</a>, <a href="../specs/FS.md#fs-07">FS-07</a></p>
+  </div>
+
+  <div class="wiki-entry" id="numeric-value">
+    <h3>NumericValue</h3>
+    <p>A wrapper for numeric scalars/vectors with optional units. Enables physical calculations with unit compatibility checking.</p>
+    <p><strong>Related:</strong> <a href="../specs/FS.md#fs-05">FS-05</a>, <a href="../specs/src/kernel/numericKernel.js.md">NumericKernel DS</a></p>
+  </div>
+
+  <div class="wiki-entry" id="branching">
+    <h3>Theory Branching</h3>
+    <p>Creating an in-memory copy of a theory for experimentation. Uses <code>BranchTheory</code> verb. Records parent version for history.</p>
+    <p><strong>Related:</strong> <a href="../specs/src/theory/theoryVersioning.js.md">TheoryVersioning DS</a></p>
+  </div>
+
+  <div class="wiki-entry" id="merging">
+    <h3>Theory Merging</h3>
+    <p>Combining two theory versions into one. Uses <code>MergeTheory</code> verb with conflict resolution.</p>
+    <p><strong>Related:</strong> <a href="../specs/src/theory/theoryVersioning.js.md">TheoryVersioning DS</a></p>
+  </div>
+
+  <div class="wiki-entry" id="gos">
+    <h3>GOS (Geometric Operating System)</h3>
+    <p>The conceptual model underlying Spock: concepts are regions, facts are points, and reasoning is geometric transformation in high-dimensional space.</p>
+    <p><strong>Related:</strong> <a href="../specs/URS.md#urs-001">URS-001</a></p>
+  </div>
+
+  <h2>Acronyms</h2>
+  <table class="matrix-table">
+    <tr><td>GOS</td><td>Geometric Operating System</td></tr>
+    <tr><td>DSL</td><td>Domain-Specific Language</td></tr>
+    <tr><td>SSA</td><td>Static Single Assignment</td></tr>
+    <tr><td>AST</td><td>Abstract Syntax Tree</td></tr>
+    <tr><td>DAG</td><td>Directed Acyclic Graph</td></tr>
+    <tr><td>URS</td><td>User Requirements Specification</td></tr>
+    <tr><td>FS</td><td>Functional Specification</td></tr>
+    <tr><td>NFS</td><td>Non-Functional Specification</td></tr>
+    <tr><td>DS</td><td>Design Specification</td></tr>
+  </table>
+
+  <style>
+    .wiki-entry {
+      background: white;
+      padding: 15px 20px;
+      margin: 15px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      border-left: 4px solid #1976d2;
+    }
+    .wiki-entry h3 {
+      margin-top: 0;
+      color: #1976d2;
+    }
+    .wiki-entry ul {
+      margin: 10px 0;
+      padding-left: 20px;
+    }
+    .matrix-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+    }
+    .matrix-table td {
+      border: 1px solid #ddd;
+      padding: 10px;
+    }
+    .matrix-table td:first-child {
+      width: 100px;
+      background: #f5f5f5;
+      font-weight: bold;
+    }
+  </style>
+  </div>
+</body>
+</html>

@@ -1,0 +1,129 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Guides – Spock GOS</title>
+  <link rel="stylesheet" href="../reference/style.css">
+</head>
+<body>
+  <div class="page">
+  <div class="nav-header">
+    <h1>Spock Conceptual Guides</h1>
+    <small>
+      <a href="../index.html">Home</a> ·
+      <a href="../architecture/index.html">Architecture</a> ·
+      <a href="../syntax/index.html">Syntax</a> ·
+      <a href="../api/index.html">APIs</a> ·
+      <a href="../wiki/index.html">Wiki</a> ·
+      <a href="../specs/matrix.html">Specs</a>
+    </small>
+  </div>
+
+  <div class="section-intro">
+    <p>These guides provide conceptual background on the key ideas behind Spock GOS. They explain the "why" behind the design decisions and how to think about geometric reasoning.</p>
+  </div>
+
+  <h2>Understanding Geometric Reasoning</h2>
+
+  <div class="section-card">
+    <h3>Why Hypervectors?</h3>
+    <p>Traditional symbolic AI represents concepts as discrete symbols that must be exactly matched. Spock uses <strong>hypervectors</strong> – high-dimensional vectors (512+ dimensions) – to represent concepts as points in a continuous geometric space.</p>
+
+    <p><strong>Key advantages:</strong></p>
+    <ul>
+      <li><strong>Graceful Similarity:</strong> Similar concepts are geometrically close, allowing fuzzy matching and analogical reasoning</li>
+      <li><strong>Compositionality:</strong> Complex concepts can be built from simpler ones using vector operations (binding, bundling)</li>
+      <li><strong>Noise Resistance:</strong> High dimensionality makes representations robust to perturbation</li>
+      <li><strong>Efficiency:</strong> Fixed-size vectors enable predictable memory usage regardless of concept complexity</li>
+    </ul>
+  </div>
+
+  <div class="section-card">
+    <h3>The Subject–Verb–Object Pattern</h3>
+    <p>Every Spock statement has exactly four tokens:</p>
+    <pre><code>@varName subject verb object</code></pre>
+
+    <p>This uniform structure is not a limitation – it's a feature that enables:</p>
+    <ul>
+      <li><strong>Easy Parsing:</strong> No ambiguity in statement structure</li>
+      <li><strong>Clear Dependencies:</strong> SSA discipline means each name appears once</li>
+      <li><strong>Explainability:</strong> Every statement can be traced and explained</li>
+      <li><strong>Macro Composition:</strong> Complex operations are built from simple S-V-O triplets</li>
+    </ul>
+  </div>
+
+  <h2>Theory Management</h2>
+
+  <div class="section-card">
+    <h3>Theories as Knowledge Bases</h3>
+    <p>A <strong>theory</strong> in Spock is a named collection of facts, rules, and verb definitions. Theories can be:</p>
+    <ul>
+      <li><strong>Persisted:</strong> Saved to disk and reloaded across sessions</li>
+      <li><strong>Overlaid:</strong> Multiple theories can be active simultaneously</li>
+      <li><strong>Versioned:</strong> Branched for experimentation, merged when validated</li>
+    </ul>
+
+    <p>Think of theories as competing worldviews or knowledge domains that can be combined, compared, and evolved.</p>
+  </div>
+
+  <div class="section-card">
+    <h3>Sessions and Symbol Resolution</h3>
+    <p>A <strong>session</strong> is a temporary working context. When you look up a symbol:</p>
+    <ol>
+      <li>Check local session scope</li>
+      <li>Check overlaid theories (LIFO order – most recent first)</li>
+      <li>Check global/default theories</li>
+    </ol>
+
+    <p>This allows you to experiment with local modifications without affecting persisted theories.</p>
+  </div>
+
+  <h2>Explainability and Traces</h2>
+
+  <div class="section-card">
+    <h3>DSL Traces</h3>
+    <p>Every Spock operation produces a <strong>DSL trace</strong> – a record of exactly what statements were executed. This trace can be:</p>
+    <ul>
+      <li><strong>Replayed:</strong> Re-execute to verify results</li>
+      <li><strong>Audited:</strong> Examine the reasoning chain</li>
+      <li><strong>Shared:</strong> Send to another system or person</li>
+    </ul>
+
+    <p>Unlike neural networks where reasoning is opaque, Spock's geometric operations are fully transparent.</p>
+  </div>
+
+  <div class="section-card">
+    <h3>Determinism</h3>
+    <p>Spock is <strong>deterministic by design</strong>. Given the same input and theories, the same output is always produced. This is essential for:</p>
+    <ul>
+      <li>Debugging and testing</li>
+      <li>Regulatory compliance</li>
+      <li>Building trust in AI systems</li>
+    </ul>
+  </div>
+
+  <h2>Numeric Integration</h2>
+
+  <div class="section-card">
+    <h3>Measured Values with Units</h3>
+    <p>Spock seamlessly combines geometric reasoning with physical quantities:</p>
+    <pre><code>@massLit 10 HasNumericValue 10
+@mass massLit AttachUnit kg
+@gLit 9.8 HasNumericValue 9.8
+@g gLit AttachUnit m_per_s2
+@force mass MulNumeric g  # Results in 98 N</code></pre>
+
+    <p>Units are checked for compatibility – you can't add kilograms to meters. This catches errors at reasoning time, not runtime.</p>
+  </div>
+
+  <h2>Related Documentation</h2>
+  <ul>
+    <li><a href="../architecture/index.html">Architecture Overview</a></li>
+    <li><a href="../syntax/index.html">SpockDSL Syntax Reference</a></li>
+    <li><a href="../api/index.html">Public API Documentation</a></li>
+    <li><a href="../specs/URS.md">User Requirements Specification</a></li>
+  </ul>
+
+  </div>
+</body>
+</html>

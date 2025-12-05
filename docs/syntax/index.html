@@ -1,0 +1,182 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SpockDSL Syntax – Spock GOS</title>
+  <link rel="stylesheet" href="../reference/style.css">
+</head>
+<body>
+  <div class="page">
+  <div class="nav-header">
+    <h1>SpockDSL Syntax Reference</h1>
+    <small>
+      <a href="../index.html">Home</a> ·
+      <a href="../architecture/index.html">Architecture</a> ·
+      <a href="index.html">Syntax</a> ·
+      <a href="../api/index.html">APIs</a> ·
+      <a href="../wiki/index.html">Wiki</a> ·
+      <a href="../specs/matrix.html">Specs</a>
+    </small>
+  </div>
+
+  <h2>Overview</h2>
+  <p>SpockDSL is a minimal, uniform domain-specific language for geometric reasoning. Every executable statement follows the same pattern, making it easy to parse, analyze, and explain.</p>
+
+  <h2>Statement Form</h2>
+  <p>Every statement has exactly four tokens:</p>
+  <pre><code>@varName subject verb object</code></pre>
+
+  <table class="matrix-table">
+    <tr>
+      <td><code>@varName</code></td>
+      <td>Declaration of a new variable in the current scope (SSA discipline)</td>
+    </tr>
+    <tr>
+      <td><code>subject</code></td>
+      <td>Reference to a previously declared name or literal</td>
+    </tr>
+    <tr>
+      <td><code>verb</code></td>
+      <td>Binary relation (kernel verb, logical verb, or user-defined)</td>
+    </tr>
+    <tr>
+      <td><code>object</code></td>
+      <td>Reference to a previously declared name or literal</td>
+    </tr>
+  </table>
+
+  <h3>Examples</h3>
+  <pre><code>@fact1 Socrates Is Human
+@fact2 Humans Are Mortal
+@premise fact1 And fact2
+@conclusion Socrates Is Mortal
+@rule premise Implies conclusion</code></pre>
+
+  <h2>Macro Definitions</h2>
+  <p>Macros group statements into named units. Three types are supported:</p>
+
+  <h3>Theory Macro</h3>
+  <p>Defines a collection of facts and verb definitions that can be persisted and reused.</p>
+  <pre><code>@BasicLogic theory begin
+    @fact1 a In b
+    @fact2 b In c
+    @premise fact1 And fact2
+    @conclusion a In c
+    @rule premise Implies conclusion
+end</code></pre>
+
+  <h3>Verb Macro</h3>
+  <p>Defines a custom binary relation using <code>$subject</code>, <code>$object</code>, and <code>@result</code>.</p>
+  <pre><code>@Eat verb begin
+    @subjectRole subject Bind Calories
+    @interaction subjectRole Add object
+    @result interaction Move subject
+end</code></pre>
+
+  <p><strong>Magic Variables:</strong></p>
+  <table class="matrix-table">
+    <tr><td><code>$subject</code></td><td>Input hypervector from the subject position</td></tr>
+    <tr><td><code>$object</code></td><td>Input hypervector from the object position</td></tr>
+    <tr><td><code>@result</code></td><td>Must be declared exactly once; becomes the verb output</td></tr>
+  </table>
+
+  <h3>Session Macro</h3>
+  <p>Defines a temporary reasoning context that overlays theories.</p>
+  <pre><code>@ReasoningSession session begin
+    @useLogic local UseTheory BasicLogic
+    @s1 Socrates Is Human
+    @s2 Humans Are Mortal
+    @query s1 Implies s2
+end</code></pre>
+
+  <h2>Kernel Verbs</h2>
+  <p>Built-in geometric operations:</p>
+  <table class="matrix-table">
+    <tr><td><code>Add</code></td><td>Element-wise vector addition</td></tr>
+    <tr><td><code>Bind</code></td><td>Element-wise product (role-filler binding)</td></tr>
+    <tr><td><code>Negate</code></td><td>Element-wise negation</td></tr>
+    <tr><td><code>Distance</code></td><td>Similarity/distance metric</td></tr>
+    <tr><td><code>Move</code></td><td>State translation (same as Add)</td></tr>
+    <tr><td><code>Modulate</code></td><td>Element-wise scaling</td></tr>
+  </table>
+
+  <h2>Numeric Verbs</h2>
+  <table class="matrix-table">
+    <tr><td><code>HasNumericValue</code></td><td>Wrap a number into NumericValue</td></tr>
+    <tr><td><code>AttachUnit</code></td><td>Attach a unit symbol (kg, m, s)</td></tr>
+    <tr><td><code>AddNumeric</code></td><td>Add with unit compatibility</td></tr>
+    <tr><td><code>SubNumeric</code></td><td>Subtract with unit compatibility</td></tr>
+    <tr><td><code>MulNumeric</code></td><td>Multiply with unit composition</td></tr>
+    <tr><td><code>DivNumeric</code></td><td>Divide with unit composition</td></tr>
+    <tr><td><code>AttachToConcept</code></td><td>Link numeric to a concept</td></tr>
+    <tr><td><code>ProjectNumeric</code></td><td>Extract numeric from concept</td></tr>
+  </table>
+
+  <h2>Theory Management Verbs</h2>
+  <table class="matrix-table">
+    <tr><td><code>UseTheory</code></td><td>Overlay a theory in the current session</td></tr>
+    <tr><td><code>Remember</code></td><td>Persist facts to a named theory</td></tr>
+    <tr><td><code>BranchTheory</code></td><td>Create an in-memory branch</td></tr>
+    <tr><td><code>MergeTheory</code></td><td>Merge two theory versions</td></tr>
+    <tr><td><code>EvaluateTheory</code></td><td>Score a theory against data</td></tr>
+    <tr><td><code>CompareTheories</code></td><td>Compare two theory versions</td></tr>
+  </table>
+
+  <h2>Comments</h2>
+  <p>Comments start with <code>#</code> and extend to end of line:</p>
+  <pre><code>@fact1 Socrates Is Human  # This is a comment
+# This entire line is a comment</code></pre>
+
+  <h2>Execution Semantics</h2>
+  <ol>
+    <li>Parse script into AST (statements and macros)</li>
+    <li>For each macro, build dependency graph from references</li>
+    <li>Compute topological order (textual order as tie-breaker)</li>
+    <li>Execute statements in topological order</li>
+    <li>For verb macros, return <code>@result</code> value</li>
+  </ol>
+
+  <h2>SSA Discipline</h2>
+  <p>Inside a macro, each <code>@name</code> can only appear once as a declaration. This ensures:</p>
+  <ul>
+    <li>Clear dependency relationships</li>
+    <li>Deterministic execution order</li>
+    <li>Easy trace reconstruction</li>
+  </ul>
+
+  <h2>Related Specifications</h2>
+  <ul>
+    <li><a href="../specs/FS.md#fs-03">FS-03: SpockDSL Syntax and Macro Semantics</a></li>
+    <li><a href="../specs/src/dsl/parser.js.md">DS Parser</a></li>
+    <li><a href="../specs/src/dsl/executor.js.md">DS Executor</a></li>
+  </ul>
+
+  <style>
+    .matrix-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+    }
+    .matrix-table td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      vertical-align: top;
+    }
+    .matrix-table td:first-child {
+      width: 180px;
+      background: #f5f5f5;
+      font-family: monospace;
+    }
+    pre {
+      background: #f5f5f5;
+      padding: 15px;
+      border-radius: 5px;
+      overflow-x: auto;
+    }
+    code {
+      font-family: 'Consolas', 'Monaco', monospace;
+    }
+  </style>
+  </div>
+</body>
+</html>
