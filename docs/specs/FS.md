@@ -91,7 +91,7 @@ Verbs are grouped by role but all obey the same binary, homotopic structure.
 | Logical / causal | `Implies`, `Causes`, `And`, `Or`, `EquivalentTo`, `Evaluate` | Defined as macros in a basic logic theory. |
 | Planning / solving | `Plan`, `Solve` | Use Semantic Gradient Descent algorithm (see below). |
 | Domain-specific | `Eat`, `Learn`, `Prove`, `Explain`, `Summarise`, `Detail` | Implement domain logic over kernel and logical verbs. |
-| Theory management | `UseTheory`, `Remember`, `BranchTheory`, `MergeTheory`, `EvaluateTheory`, `CompareTheories` | Manage theories, sessions and versions. |
+| Theory management | `UseTheory`, `Remember`, `BranchTheory`, `MergeTheory`, `EvaluateTheory`, `CompareTheories`, `Persist`, `Describe` | Manage theories, sessions and versions; `Persist` pins results under a human-readable name; `Describe` links a result to an anchored concept for later verbalisation. |
 | Numeric | `HasNumericValue`, `AttachUnit`, `AddNumeric`, `SubNumeric`, `MulNumeric`, `DivNumeric`, `AttachToConcept`, `ProjectNumeric` | Work with numeric values and units. |
 
 ### Verb Constraints
@@ -129,6 +129,14 @@ This dual behavior allows `Evaluate` to scale `Truth` by a similarity score.
 #### Identity (Pass-through)
 
 `Identity` returns its subject unchanged. Used when DSL syntax requires a verb but no transformation is needed.
+
+#### Persist (Pinning Results)
+
+`Persist(subject, name)` stores the `$subject` under the human-friendly `name` in the session/theory so it survives cleanup of temporaries and can appear in `DSL_OUTPUT`. It does not modify the value.
+
+#### Describe (Semantic Link to Named Concepts)
+
+`Describe(subject, anchor)` constructs a geometric edge to the named `anchor` concept: `Bind(subject, anchor) → Move(.., subject)`. It returns a vector fact that can be serialized without leaking temporary step names, enabling later natural-language rendering of how the result relates to known concepts.
 
 #### Plan and Solve (Semantic Gradient Descent)
 

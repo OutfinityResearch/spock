@@ -52,27 +52,33 @@ function executePersist(subject, object, context) {
 
 /**
  * Describe verb - attaches a human-friendly description/anchor to a value
- * without renaming it. Returns the same value enriched with metadata.
+ * without renaming it. Returns a linked vector (Bind+Move) to the anchor
+ * so it can be serialized as a fact without depending on temporaries.
  * @param {Object} subject - Typed value to describe
  * @param {Object} object - Anchor name or identifier
  * @param {Object} context - Execution context
- * @returns {Object} Described value (same type/value)
+ * @returns {Object} Described value (VECTOR link to anchor)
  */
 function executeDescribe(subject, object, context) {
   debug.enter('executor', 'executeDescribe', { object });
-  const anchor =
-    object.type === 'STRING'
-      ? object.value
-      : String(object.symbolName || object.value || object);
+  // Resolve anchor as a vector concept
+  const anchorValue = resolveSymbol(
+    object.type === 'STRING' ? object.value : (object.symbolName || object.value || object),
+    context
+  );
+  if (anchorValue.type !== 'VECTOR') {
+    throw new ExecutionError('Describe requires VECTOR anchor concept', null);
+  }
 
-  // Clone subject to avoid mutation
-  const described = {
-    ...subject,
-    describedAs: anchor
-  };
+  // Link subject to anchor (Bind + Move toward subject)
+  const binding = executeKernelVerb('Bind', subject.value, anchorValue.value);
+  const linked = executeKernelVerb('Move', binding, subject.value);
+  const result = createTypedValue('VECTOR', linked, {
+    describedAs: anchorValue.symbolName || String(anchorValue.value || object)
+  });
 
-  debug.exit('executor', 'executeDescribe', described);
-  return described;
+  debug.exit('executor', 'executeDescribe', result);
+  return result;
 }
 /**
  * Type validation error
