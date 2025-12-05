@@ -13,13 +13,32 @@ The kernel architecture realises the conceptual model and DSL semantics.
 ### Primitive Operations
 
 ```javascript
-Add(v1, v2)      -> v1 + v2
-Bind(v1, v2)     -> elementwise product or circular convolution
-Negate(v)        -> -v
-Distance(v1, v2) -> cosine similarity or derived metric
-Move(state, d)   -> state + d
-Modulate(x, g)   -> x * g
+Add(v1, v2)       -> v1 + v2
+Bind(v1, v2)      -> elementwise product or circular convolution
+Negate(v)         -> -v
+Distance(v1, v2)  -> cosine similarity (returns scalar in [0,1])
+Move(state, d)    -> state + d
+Modulate(v, op)   -> v * op (polymorphic: scalar or vector)
+Identity(v)       -> v (pass-through)
+Normalise(v)      -> v / ||v|| (unit vector)
 ```
+
+### Geometric Truth Model
+
+The system implements a **geometric truth model** where logical truth is represented as a direction in hyperdimensional space:
+
+| Concept | Representation |
+|---------|---------------|
+| `Truth` | Canonical random unit vector, generated at engine startup |
+| `False` | `-Truth` (opposite direction) |
+| `Zero` | Zero vector (no information) |
+| Partial truth | `0.8 * Truth` (80% aligned with Truth) |
+
+**Key Design Decisions:**
+- Truth vectors are composable: `0.3*Truth + 0.4*Truth = 0.7*Truth`
+- `Modulate(Truth, scalar)` converts truth degrees to truth vectors
+- `Distance(result, Truth)` measures alignment with truth (returns scalar)
+- Random dense vectors are used (VSA standard) for robustness
 
 Numeric kernel operations are defined analogously with unit checking and conversion.
 
@@ -128,6 +147,7 @@ At the end of each run the evaluator prints a compact table: one line per suite,
 | [src/theory/theoryStore.js](src/theory/theoryStore.js.md) | Load, save and list theories on disk | URS-005, URS-006, FS-04, DS Theory |
 | [src/theory/theoryVersioning.js](src/theory/theoryVersioning.js.md) | Implement branching and merging of theories | URS-005, FS-04, DS Theory |
 | [src/session/sessionManager.js](src/session/sessionManager.js.md) | Create and manage sessions | URS-005, URS-006, FS-01, FS-04, DS Kernel |
+| [src/planning/planner.js](src/planning/planner.js.md) | Implement Plan and Solve verbs via Semantic Gradient Descent | URS-004, FS-02, FS-07, DS Planning |
 | [src/logging/traceLogger.js](src/logging/traceLogger.js.md) | Record execution traces as DSL statements | URS-008, FS-07, DS DSL |
 | [src/api/engineFactory.js](src/api/engineFactory.js.md) | Main public entry point createSpockEngine | URS-006, URS-007, FS-06, DS Kernel |
 | [src/api/sessionApi.js](src/api/sessionApi.js.md) | High-level Session API facade | URS-007, URS-008, FS-06, FS-07, DS DSL |

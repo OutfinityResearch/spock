@@ -23,11 +23,32 @@
 {
   session: SessionObject,       // Current session
   theories: Map<string, Theory>,// Loaded theories
-  symbols: Map<string, Value>,  // Local symbol table
+  symbols: Map<string, TypedValue>,  // Local symbol table (typed values)
   traceId: string,              // For trace logging
   config: ConfigObject          // Runtime configuration
 }
 ```
+
+### Symbol Table and Typed Values
+
+The symbol table stores **boxed values** with explicit type tags:
+
+```javascript
+// TypedValue structure
+{
+  type: 'VECTOR' | 'SCALAR' | 'NUMERIC' | 'MACRO',
+  value: Float32Array | number | NumericValue | MacroAST
+}
+
+// Examples:
+symbols.set('@fact1', { type: 'VECTOR', value: Float32Array([...]) });
+symbols.set('@similarity', { type: 'SCALAR', value: 0.85 });
+symbols.set('@mass', { type: 'NUMERIC', value: 10, unit: 'kg' });
+```
+
+**Type Dispatch:** When resolving verb arguments, the executor checks the `type` field to:
+- Validate type compatibility (e.g., `Add` requires same types)
+- Select polymorphic behavior (e.g., `Modulate` with scalar vs vector)
 
 ## Function Specifications
 

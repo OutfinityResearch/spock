@@ -6,13 +6,50 @@ This section defines the main runtime entities and their roles.
 
 | Entity | Description |
 |--------|-------------|
-| `@name` declaration | Any identifier prefixed with `@` declares a new variable in the current scope and is bound to a hypervector or typed value. It always represents a point in space that can be temporary or later saved into a theory by `Remember`. |
+| `@name` declaration | Any identifier prefixed with `@` declares a new variable in the current scope and is bound to a **typed runtime value** (see Runtime Type System below). It always represents a point in space that can be temporary or later saved into a theory by `Remember`. |
 | Reference name | Refers to a previously declared `@name` in the visible context. It is used as subject, verb or object in statements. |
-| Fact | Result of a statement `@varName subject verb object`. The hypervector bound to `@varName` is a fact or state that can be reused. |
+| Fact | Result of a statement `@varName subject verb object`. The value bound to `@varName` is a fact or state that can be reused. |
 | Concept | A fact that is interpreted as a stable prototype in the conceptual space and may accumulate statistics. |
 | Theory | A macro of type `theory` that groups definitions, facts and verbs and can be persisted. |
 | Verb | A macro of type `verb` that defines a homotopic binary relation using `$subject` and `$object` and produces `@result`. |
 | Session | A macro of type `session` used as a working context that overlays theories and hosts temporary facts. |
+
+### Runtime Type System
+
+Variables (`@name`) in SpockDSL are **boxed values** with explicit type tags. This enables polymorphic operations and proper handling of scalars from operations like `Distance`.
+
+| Type | Internal Representation | Description |
+|------|------------------------|-------------|
+| `VECTOR` | `{ type: 'VECTOR', value: Float32Array }` | Hypervector in conceptual space |
+| `SCALAR` | `{ type: 'SCALAR', value: number }` | Single numeric value (e.g., from `Distance`) |
+| `NUMERIC` | `{ type: 'NUMERIC', value: number, unit: string }` | Measured value with unit |
+| `MACRO` | `{ type: 'MACRO', ast: MacroAST }` | Verb or theory definition |
+
+**Type Checking Rules:**
+- `Distance(v1, v2)` → returns `SCALAR`
+- `Modulate(VECTOR, SCALAR)` → returns `VECTOR` (scalar multiplication)
+- `Modulate(VECTOR, VECTOR)` → returns `VECTOR` (Hadamard product)
+- `Add(VECTOR, VECTOR)` → returns `VECTOR`
+- `Add(SCALAR, SCALAR)` → returns `SCALAR`
+- Type mismatches produce runtime errors with clear messages
+
+### Canonical Constants
+
+The system provides built-in canonical constants available in every session:
+
+| Constant | Description |
+|----------|-------------|
+| `Truth` | A random fixed hypervector of norm 1, generated at engine initialization. Represents the canonical direction of "true" in conceptual space. |
+| `False` | Defined as `Negate(Truth)`. Represents the opposite direction of truth. |
+| `Zero` | The zero vector (all components 0). Represents absence of information or neutral state. |
+
+**Design Rationale:** Truth is a dense random vector (Gaussian or bipolar ±1) rather than a one-hot vector like `[1,0,0,...]`. In high-dimensional spaces, random vectors are quasi-orthogonal to each other with high probability, making them robust to noise and rotations. This is standard practice in Vector Symbolic Architectures (VSA).
+
+**Truth Geometry:**
+- Full truth: vector aligned with `Truth` (magnitude ≈ 1)
+- Partial truth: vector aligned with `Truth` but shorter (e.g., `0.8 * Truth` = 80% true)
+- Falsity: vector aligned with `-Truth`
+- Uncertainty: vector orthogonal to `Truth` or zero vector
 
 ### Magic Variables Inside Verbs
 
@@ -22,15 +59,38 @@ This section defines the main runtime entities and their roles.
 | `$object` | Input hypervector used as the object of the verb. |
 | `@result` | Special declaration inside verb macros that denotes the final output. It must be declared exactly once. |
 
+### Concept Auto-Generation
+
+When a DSL statement references an undefined identifier (e.g., `Socrates`, `Human`, `Mortal`), the system automatically generates a new concept:
+
+| Situation | Behavior |
+|-----------|----------|
+| First use of identifier | Generate random hypervector via `createRandomVector(dim)`, register in session/theory |
+| Subsequent uses | Resolve to previously generated vector |
+| Persistence | Session-local concepts are lost at session end; use `Remember` to persist |
+
+**Example:**
+```spockdsl
+@fact Socrates Is Human
+# If Socrates, Is, Human are undefined:
+# - Socrates → new random vector
+# - Is → verb lookup (defined in theory)
+# - Human → new random vector
+# - @fact → result of Is(Socrates, Human)
+```
+
+**Design Rationale:** Auto-generation enables rapid prototyping without explicit concept declarations. In high-dimensional spaces, random vectors are quasi-orthogonal, so auto-generated concepts are naturally distinct.
+
 ## FS-02 Verb Taxonomy and Constraints
 
 Verbs are grouped by role but all obey the same binary, homotopic structure.
 
 | Category | Examples | Notes |
 |----------|----------|-------|
-| Kernel verbs | `Add`, `Bind`, `Negate`, `Distance`, `Move`, `Modulate` | Map directly to vector operations. |
+| Kernel verbs | `Add`, `Bind`, `Negate`, `Distance`, `Move`, `Modulate`, `Identity`, `Normalise` | Map directly to vector operations. |
 | Logical / causal | `Implies`, `Causes`, `And`, `Or`, `EquivalentTo`, `Evaluate` | Defined as macros in a basic logic theory. |
-| Domain-specific | `Eat`, `Learn`, `Plan`, `Prove`, `Explain`, `Summarise`, `Detail`, `Solve` | Implement domain logic over kernel and logical verbs. |
+| Planning / solving | `Plan`, `Solve` | Use Semantic Gradient Descent algorithm (see below). |
+| Domain-specific | `Eat`, `Learn`, `Prove`, `Explain`, `Summarise`, `Detail` | Implement domain logic over kernel and logical verbs. |
 | Theory management | `UseTheory`, `Remember`, `BranchTheory`, `MergeTheory`, `EvaluateTheory`, `CompareTheories` | Manage theories, sessions and versions. |
 | Numeric | `HasNumericValue`, `AttachUnit`, `AddNumeric`, `SubNumeric`, `MulNumeric`, `DivNumeric`, `AttachToConcept`, `ProjectNumeric` | Work with numeric values and units. |
 
@@ -41,6 +101,73 @@ Verbs are grouped by role but all obey the same binary, homotopic structure.
 | Binary inputs | Verbs accept only `$subject` and `$object` as semantic inputs. |
 | Composite structure | Composite verbs are defined only via DSL statements in their body, eventually calling other verbs but not arbitrary extra parameters. |
 | Homotopy | Verb implementations must correspond to continuous transformations in vector space, enabling reversible or smoothly reversible reasoning where possible. |
+| Runtime type dispatch | Polymorphic verbs (e.g., `Modulate`, `Add`) check the runtime type of their arguments to determine behavior. Type: `VECTOR` vs `SCALAR` determines the operation applied. |
+
+### Key Verb Semantics
+
+#### Evaluate (Truth Projection)
+
+The `Evaluate` verb transforms a scalar truth degree into a geometric truth vector by modulating the canonical `Truth` constant:
+
+```
+scalar Evaluate Truth → scalar * Truth (vector)
+```
+
+This enables:
+- **Composability**: Truth vectors can be combined with `Add` (evidence accumulation)
+- **Continuity**: All logical operations produce vectors, not discrete values
+- **Explainability**: Results can be described as "X% aligned with Truth"
+
+#### Modulate (Polymorphic Scaling)
+
+`Modulate` is polymorphic based on the second operand:
+- `Modulate(vector, vector)` → element-wise product (Hadamard) or convolution (gating)
+- `Modulate(vector, scalar)` → scalar multiplication (scaling)
+
+This dual behavior allows `Evaluate` to scale `Truth` by a similarity score.
+
+#### Identity (Pass-through)
+
+`Identity` returns its subject unchanged. Used when DSL syntax requires a verb but no transformation is needed.
+
+#### Plan and Solve (Semantic Gradient Descent)
+
+The `Plan` and `Solve` verbs use a **Semantic Gradient Descent** algorithm - a geometric approach to search that navigates the conceptual space toward a goal.
+
+**Algorithm:**
+```
+Plan(currentState, goalState):
+    while Distance(current, goal) > epsilon:
+        candidates = []
+        for each available verb V in context:
+            for each applicable object O:
+                nextState = V(current, O)
+                score = Distance(nextState, goal)  # cosine similarity
+                candidates.append((V, O, nextState, score))
+
+        best = argmin(candidates, by=score)
+        if best.score >= Distance(current, goal):
+            # Plateau detected - no progress
+            return FAILURE or invoke procedural fallback
+
+        plan.append(best.action)
+        current = best.nextState
+
+    return plan
+```
+
+**Key Properties:**
+- **Geometric navigation**: Chooses actions that minimize angular distance (maximize cosine similarity) to goal
+- **Greedy hill-climbing**: Always picks the locally best action
+- **Plateau detection**: If no action improves the score, either fail or invoke procedural plugin
+- **Composability**: Plan steps are DSL statements that can be traced and explained
+
+**Fallback Mechanism:**
+If pure geometric navigation fails (plateau or cycle), the system can invoke a procedural solver plugin (JavaScript). This hybrid approach maintains geometric priority while ensuring completeness for constraint problems.
+
+**Solve vs Plan:**
+- `Plan`: Finds a sequence of actions (trajectory through space)
+- `Solve`: Finds an assignment satisfying constraints (point in space)
 
 ## FS-03 SpockDSL Syntax and Macro Semantics
 
@@ -71,22 +198,26 @@ end
 
 ```spockdsl
 @Eat verb begin
-    @subjectRole subject Bind Calories
-    @interaction subjectRole Add object
-    @result interaction Move subject
+    @subjectRole $subject Bind Calories
+    @interaction subjectRole Add $object
+    @result interaction Move $subject
 end
 ```
+
+**Note:** Inside verb macros, `$subject` and `$object` are magic variables that refer to the verb's inputs.
 
 ### Example: Session
 
 ```spockdsl
 @ReasoningSession session begin
-    @useLogic local UseTheory BasicLogic
+    @useLogic _ UseTheory BasicLogic
     @s1 Socrates Is Human
     @s2 Humans Are Mortal
     @query s1 Implies s2
 end
 ```
+
+**Note:** The `_` in `@useLogic _ UseTheory BasicLogic` is a placeholder subject (the theory is loaded as a side effect). Alternative syntax: `@_ BasicLogic UseTheory _` where `UseTheory` is a special verb.
 
 ## FS-04 Theories, Sessions, Overlays and Versions
 
@@ -105,8 +236,8 @@ This section describes how theories, sessions and versioning work at the functio
 
 ```spockdsl
 @VersionedSession session begin
-    @useClassic local UseTheory ClassicalPhysics_v1
-    @useQuantum local UseTheory QuantumPhysics_v3
+    @useClassic _ UseTheory ClassicalPhysics_v1
+    @useQuantum _ UseTheory QuantumPhysics_v3
 
     @regime data EvaluateTheory ClassicalPhysics_v1
     @regime2 data EvaluateTheory QuantumPhysics_v3

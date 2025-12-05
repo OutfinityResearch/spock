@@ -1,0 +1,72 @@
+[
+  {
+    "NL_TASK": "Assert basic containment: a In b",
+    "TASK_TYPE": "Learn",
+    "DSL_TASK": "@fact1 a In b",
+    "DSL_OUTPUT": "@fact1 a In b",
+    "NL_OUTPUT": "Basic containment fact stored"
+  },
+  {
+    "NL_TASK": "Assert second containment: b In c",
+    "TASK_TYPE": "Learn",
+    "DSL_TASK": "@fact2 b In c",
+    "DSL_OUTPUT": "@fact2 b In c",
+    "NL_OUTPUT": "Second containment fact stored"
+  },
+  {
+    "NL_TASK": "Derive transitive conclusion: a In c",
+    "TASK_TYPE": "Ask",
+    "DSL_TASK": "@f1 a In b\n@f2 b In c\n@chain @f1 TransitiveChain @f2\n@target a In c\n@result @chain Derive @target",
+    "DSL_OUTPUT": "@result @chain Derive @target",
+    "NL_OUTPUT": "Transitive derivation shows a is in c"
+  },
+  {
+    "NL_TASK": "Longer transitivity chain: a In b, b In c, c In d",
+    "TASK_TYPE": "Ask",
+    "DSL_TASK": "@f1 a In b\n@f2 b In c\n@f3 c In d\n@chain1 @f1 TransitiveChain @f2\n@chain2 @chain1 TransitiveChain @f3\n@target a In d\n@result @chain2 Derive @target",
+    "DSL_OUTPUT": "@result @chain2 Derive @target",
+    "NL_OUTPUT": "Three-step transitivity chain"
+  },
+  {
+    "NL_TASK": "Test Barbara syllogism: All M are P, All S are M => All S are P",
+    "TASK_TYPE": "Ask",
+    "DSL_TASK": "@major AllM In AllP\n@minor AllS In AllM\n@chain @minor TransitiveChain @major\n@conclusion AllS In AllP\n@result @chain Derive @conclusion",
+    "DSL_OUTPUT": "@result @chain Derive @conclusion",
+    "NL_OUTPUT": "Barbara syllogism validated"
+  },
+  {
+    "NL_TASK": "Test missing link detection",
+    "TASK_TYPE": "Ask",
+    "DSL_TASK": "@f1 x In y\n@f2 z In w\n@target x In w\n@result @f1 Derive @target",
+    "DSL_OUTPUT": "@result @f1 Derive @target",
+    "NL_OUTPUT": "Missing link should show low truth score"
+  },
+  {
+    "NL_TASK": "Test set membership: Socrates In Humans, Humans In Mortals",
+    "TASK_TYPE": "Ask",
+    "DSL_TASK": "@f1 Socrates In Humans\n@f2 Humans In Mortals\n@chain @f1 TransitiveChain @f2\n@conclusion Socrates In Mortals\n@result @chain Derive @conclusion",
+    "DSL_OUTPUT": "@result @chain Derive @conclusion",
+    "NL_OUTPUT": "Classical syllogism about Socrates"
+  },
+  {
+    "NL_TASK": "Test branching: a In b, a In c (same source, different targets)",
+    "TASK_TYPE": "Ask",
+    "DSL_TASK": "@f1 a In b\n@f2 a In c\n@combined @f1 TransitiveChain @f2",
+    "DSL_OUTPUT": "@combined @f1 TransitiveChain @f2",
+    "NL_OUTPUT": "Same element in multiple containers"
+  },
+  {
+    "NL_TASK": "Four-step chain test",
+    "TASK_TYPE": "Ask",
+    "DSL_TASK": "@f1 p In q\n@f2 q In r\n@f3 r In s\n@f4 s In t\n@c1 @f1 TransitiveChain @f2\n@c2 @c1 TransitiveChain @f3\n@c3 @c2 TransitiveChain @f4\n@target p In t\n@result @c3 Derive @target",
+    "DSL_OUTPUT": "@result @c3 Derive @target",
+    "NL_OUTPUT": "Long chain maintains transitivity"
+  },
+  {
+    "NL_TASK": "Test proof trace generation",
+    "TASK_TYPE": "Proof",
+    "DSL_TASK": "@premise1 A In B\n@premise2 B In C\n@chain @premise1 TransitiveChain @premise2\n@goal A In C\n@proof @chain Derive @goal",
+    "DSL_OUTPUT": "@proof @chain Derive @goal",
+    "NL_OUTPUT": "Proof trace shows derivation steps"
+  }
+]

@@ -52,44 +52,81 @@ Creates an in-memory branch of an existing theory.
 @branchPhysics ClassicalPhysics BranchTheory ExperimentalPhysics
 ```
 
-### `mergeTheory(theoryA, theoryB, conflictResolver)`
+### `mergeTheory(theoryA, theoryB, strategy)`
 
-Merges two theory versions into one.
+Merges two theory versions into one using a DSL-based strategy.
 
 **Parameters:**
-- `theoryA` (TheoryDescriptor): First theory
-- `theoryB` (TheoryDescriptor): Second theory
-- `conflictResolver` (function): Callback for resolving conflicts
+- `theoryA` (TheoryDescriptor): First (base) theory
+- `theoryB` (TheoryDescriptor): Second (overlay) theory
+- `strategy` (string): Merge strategy name (default: `'consensus'`)
 
 **Returns:**
 - Merged TheoryDescriptor
 
 **DSL Mapping:** `MergeTheory` verb
 
-**Merge Strategy:**
-1. Identify common ancestor (if exists)
-2. Collect changes from both branches
-3. Apply non-conflicting changes
-4. Call `conflictResolver` for conflicts
-5. Create new theory with merged content
+## Merge Strategies
 
-## Conflict Resolution
+The system provides predefined, DSL-compatible merge strategies (no JavaScript callbacks):
+
+### Strategy: `'consensus'` (default)
+
+For **vector values** (concepts, facts): Geometric average.
 
 ```javascript
-conflictResolver(conflict) {
-  // conflict = {
-  //   name: string,        // Declaration name
-  //   valueA: Statement,   // Statement from theoryA
-  //   valueB: Statement,   // Statement from theoryB
-  //   ancestorValue: Statement | null  // Original if exists
-  // }
-  // Returns: Statement (chosen resolution)
+mergedVector = Normalise(Add(vecA, vecB))
+```
+
+This places the merged concept at the "midpoint" direction between both theories.
+
+### Strategy: `'override'`
+
+For **macro definitions** (verbs, rules): Second theory wins.
+
+```javascript
+if (theoryB.has(name)) {
+  merged[name] = theoryB.get(name);
+} else {
+  merged[name] = theoryA.get(name);
 }
 ```
 
-**Conflict Types:**
-- Same declaration with different statements
-- Deleted in one branch, modified in other
+The overlay theory's definitions replace the base theory's definitions with the same name.
+
+### Strategy: `'keep_base'`
+
+Opposite of override - first theory wins on conflicts.
+
+### Strategy: `'fail_on_conflict'`
+
+Throws an error if any name appears in both theories with different values.
+
+## Merge Algorithm
+
+```
+mergeTheory(A, B, strategy):
+    merged = new Theory()
+
+    for name in union(A.names, B.names):
+        if name only in A:
+            merged[name] = A[name]
+        else if name only in B:
+            merged[name] = B[name]
+        else:  # conflict
+            if A[name].type == 'VECTOR' and strategy == 'consensus':
+                merged[name] = Normalise(Add(A[name], B[name]))
+            else if strategy == 'override':
+                merged[name] = B[name]
+            else if strategy == 'keep_base':
+                merged[name] = A[name]
+            else:
+                throw ConflictError(name)
+
+    return merged
+```
+
+**Design Rationale:** DSL-based strategies maintain the geometric abstraction. JavaScript callbacks would break the pure DSL model and make reasoning non-reproducible.
 
 ## Version History
 

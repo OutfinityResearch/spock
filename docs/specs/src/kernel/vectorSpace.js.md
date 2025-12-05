@@ -5,9 +5,9 @@
 | Field | Value |
 |-------|-------|
 | **Primary role** | Manage hypervector storage and basic vector math helpers. Hide TypedArray details from the rest of the system. |
-| **Public functions** | `createVector(dim)`, `cloneVector(vec)`, `dot(a, b)`, `norm(vec)`, `normalise(vec)` |
+| **Public functions** | `createVector(dim)`, `createRandomVector(dim)`, `cloneVector(vec)`, `dot(a, b)`, `norm(vec)`, `normalise(vec)` |
 | **Depends on** | Standard JavaScript / Node.js APIs (Float32Array and related). |
-| **Used by** | `src/kernel/primitiveOps.js`, `src/viz/projectionService.js` |
+| **Used by** | `src/kernel/primitiveOps.js`, `src/viz/projectionService.js`, `src/api/engineFactory.js` |
 
 ## Traceability
 
@@ -32,6 +32,36 @@ Creates a new zero-initialized hypervector of the specified dimension.
 **Constraints:**
 - `dim` must be a positive integer
 - Memory allocation must be deterministic
+
+### `createRandomVector(dim)`
+
+Creates a new hypervector with random components, suitable for use as a concept prototype or canonical constant.
+
+**Parameters:**
+- `dim` (number): The dimensionality of the vector
+
+**Returns:**
+- Float32Array of length `dim`, with random values
+
+**Generation Methods (configurable):**
+- **Gaussian**: Each component sampled from N(0, 1/√dim) - produces dense vectors
+- **Bipolar**: Each component is +1 or -1 with equal probability - standard in VSA
+
+**Constraints:**
+- `dim` must be a positive integer
+- Results should be reproducible given a seed (for testing)
+- Default: Gaussian distribution, can be configured in `config.js`
+
+**Usage:**
+```javascript
+// For canonical Truth constant (then normalise)
+const truth = normalise(createRandomVector(512));
+
+// For new concept prototypes
+const catConcept = createRandomVector(512);
+```
+
+**Design Rationale:** Random dense vectors in high-dimensional spaces are quasi-orthogonal with high probability. This property is fundamental to Vector Symbolic Architectures (VSA) and enables robust concept separation without explicit orthogonalization.
 
 ### `cloneVector(vec)`
 

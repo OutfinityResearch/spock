@@ -75,6 +75,32 @@ The engine automatically loads certain base theories:
 - `CoreVerbs` - Basic kernel verb definitions
 - `BasicLogic` - Logical operators
 
+## Canonical Constants Initialization
+
+At engine startup, the following canonical constants are generated and made globally available:
+
+| Constant | Generation | Description |
+|----------|------------|-------------|
+| `Truth` | `vectorSpace.createRandomVector(dim)` then `normalise()` | Random unit vector, fixed for engine lifetime |
+| `False` | `primitiveOps.negate(Truth)` | Negation of Truth |
+| `Zero` | `vectorSpace.createVector(dim)` | Zero-initialized vector |
+
+**Implementation:**
+```javascript
+// In createSpockEngine initialization
+const dim = config.dimensions;
+const Truth = vectorSpace.normalise(vectorSpace.createRandomVector(dim));
+const False = primitiveOps.negate(Truth);
+const Zero = vectorSpace.createVector(dim);
+
+// Register as global symbols
+globalSymbols.set('Truth', Truth);
+globalSymbols.set('False', False);
+globalSymbols.set('Zero', Zero);
+```
+
+**Persistence:** The `Truth` vector should be saved to `.spock/truth.bin` on first run and loaded on subsequent runs to ensure consistency across engine restarts.
+
 ## Engine Lifecycle
 
 ```
@@ -83,6 +109,8 @@ createSpockEngine(options)
 Initialize config
     ↓
 Create/verify working folder
+    ↓
+Load or generate canonical constants (Truth, False, Zero)
     ↓
 Load default theories
     ↓

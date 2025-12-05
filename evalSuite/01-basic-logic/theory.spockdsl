@@ -1,0 +1,30 @@
+@BasicLogic theory begin
+    # Is: Creates a fact by binding subject to object role
+    @Is verb begin
+        @binding $subject Bind $object
+        @result @binding Move $subject
+    end
+
+    # And: Combines two facts via addition (evidence accumulation)
+    @And verb begin
+        @combined $subject Add $object
+        @result @combined Normalise @combined
+    end
+
+    # Or: Logical disjunction
+    @Or verb begin
+        @combined $subject Add $object
+        @result @combined Identity @combined
+    end
+
+    # Implies: Measures how well antecedent supports consequent
+    @Implies verb begin
+        @similarity $subject Distance $object
+        @result Truth Modulate @similarity
+    end
+
+    # Not: Logical negation
+    @Not verb begin
+        @result $subject Negate $subject
+    end
+end

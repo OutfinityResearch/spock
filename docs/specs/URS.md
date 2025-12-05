@@ -11,7 +11,7 @@ The system must maintain semantic coherence: concepts that humans consider simil
 | Representation | Concepts, facts, verbs and DSL sentences are hypervectors in a geometric space. |
 | Reasoning | Reasoning, planning and explanation are expressed as DSL scripts and executed as geometric transformations. |
 | Continuity | Transformations should be homotopic, avoiding discontinuous, brute logical jumps. |
-| Truth values | Degrees of truth are real values in [0,1], not only Boolean. |
+| Truth values | Degrees of truth are **vectors aligned with a canonical Truth direction**, not scalars or booleans. A truth degree of 0.8 is represented as `0.8 * Truth` (a vector). This enables composable, continuous reasoning. |
 
 ## URS-002 Stakeholders and Usage Context
 

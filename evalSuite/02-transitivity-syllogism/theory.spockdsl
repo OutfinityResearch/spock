@@ -1,0 +1,25 @@
+@TransitivityTheory theory begin
+    # In: Containment/membership relation
+    @In verb begin
+        @container $object
+        @element $subject
+        @membership @element Bind @container
+        @result @membership Move @element
+    end
+
+    # TransitiveChain: Chain two relations
+    @TransitiveChain verb begin
+        @step1 $subject
+        @step2 $object
+        @chain @step1 Add @step2
+        @result @chain Normalise @chain
+    end
+
+    # Derive: Derive transitive conclusion
+    @Derive verb begin
+        @premise $subject
+        @target $object
+        @derivation @premise Distance @target
+        @result Truth Modulate @derivation
+    end
+end

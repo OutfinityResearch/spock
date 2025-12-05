@@ -4,8 +4,8 @@
 
 | Field | Value |
 |-------|-------|
-| **Primary role** | Implement geometric primitive verbs that correspond to `Add`, `Bind`, `Negate`, `Distance`, `Move`, `Modulate` as pure vector operations. |
-| **Public functions** | `add(a, b)`, `bind(a, b)`, `negate(v)`, `distance(a, b)`, `move(state, delta)`, `modulate(info, gate)` |
+| **Primary role** | Implement geometric primitive verbs that correspond to `Add`, `Bind`, `Negate`, `Distance`, `Move`, `Modulate`, `Identity`, `Normalise` as pure vector operations. |
+| **Public functions** | `add(a, b)`, `bind(a, b)`, `negate(v)`, `distance(a, b)`, `move(state, delta)`, `modulate(v, operand)`, `identity(v)`, `normalise(v)` |
 | **Depends on** | `src/kernel/vectorSpace.js` |
 | **Used by** | `src/dsl/executor.js`, standard logic theories that map verb names to these functions |
 
@@ -106,19 +106,66 @@ Translates a state vector by a delta vector.
 - Equivalent to `add(state, delta)`
 - Represents continuous transformation in conceptual space
 
-### `modulate(info, gate)`
+### `modulate(v, operand)`
 
-Modulates information vector by a gate vector.
+Polymorphic modulation: scales a vector by either another vector (gating) or a scalar (scaling).
 
 **Parameters:**
-- `info` (Float32Array): Information vector
-- `gate` (Float32Array): Gate/scale vector
+- `v` (Float32Array): Input vector
+- `operand` (Float32Array | number): Gate vector or scalar multiplier
 
 **Returns:**
 - Float32Array: Modulated vector
 
 **DSL Mapping:** `Modulate` verb
 
+**Behaviour:**
+- If `operand` is a **number** (scalar): returns `v * operand` (scalar multiplication)
+- If `operand` is a **vector**: returns element-wise product `result[i] = v[i] * operand[i]`
+
 **Constraints:**
-- Element-wise scaling: `result[i] = info[i] * gate[i]`
-- Gate values typically in [0, 1] for attenuation
+- Type checking: `typeof operand === 'number'` determines behavior
+- Scalar mode enables `Evaluate` to transform truth degrees into truth vectors
+- Vector mode enables gating (attention-like mechanisms)
+
+**Examples:**
+```javascript
+// Scalar mode (for Evaluate)
+modulate(Truth, 0.8)  // Returns 0.8 * Truth
+
+// Vector mode (for gating)
+modulate(info, gate)  // Returns info ⊙ gate (Hadamard product)
+```
+
+### `identity(v)`
+
+Returns the input vector unchanged. Used when DSL syntax requires a verb but no transformation is needed.
+
+**Parameters:**
+- `v` (Float32Array): Input vector
+
+**Returns:**
+- Float32Array: Copy of input vector
+
+**DSL Mapping:** `Identity` verb
+
+**Constraints:**
+- Must return a new copy, not a reference (to preserve immutability)
+- `identity(identity(v)) ≈ identity(v)`
+
+### `normalise(v)`
+
+Normalizes a vector to unit length.
+
+**Parameters:**
+- `v` (Float32Array): Input vector
+
+**Returns:**
+- Float32Array: Unit vector in the same direction (norm = 1)
+
+**DSL Mapping:** `Normalise` verb
+
+**Constraints:**
+- Returns zero vector if input is zero vector
+- Norm of result should be ≈ 1.0 (within floating-point tolerance)
+- Idempotent: `normalise(normalise(v)) ≈ normalise(v)`

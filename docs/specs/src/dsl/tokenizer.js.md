@@ -89,7 +89,17 @@ Tokenizes an entire DSL script.
 | `declaration` | Starts with `@` | `@fact1`, `@result`, `@BasicLogic` |
 | `keyword` | Reserved words | `begin`, `end`, `theory`, `verb`, `session` |
 | `identifier` | Alphanumeric | `Socrates`, `Is`, `Human`, `UseTheory` |
+| `magic_var` | Starts with `$` | `$subject`, `$object` |
+| `placeholder` | Underscore alone | `_` |
 | `literal` | Numeric | `5`, `3.14`, `-10` |
+
+### Special Tokens
+
+| Token | Usage |
+|-------|-------|
+| `$subject` | Magic variable in verb macros - refers to verb's first input |
+| `$object` | Magic variable in verb macros - refers to verb's second input |
+| `_` | Placeholder for unused positions in statements (e.g., `@use _ UseTheory Logic`) |
 
 ## Comment Handling
 
