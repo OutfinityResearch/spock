@@ -191,58 +191,68 @@ function extractConclusions(context, trace = null) {
 
 /**
  * Extracts fact-like conclusions from trace steps
- * This reflects the actual operations that were executed
+ * This reflects the actual DSL statements that were executed
  *
  * @param {Object} trace - Trace object with steps
  * @returns {Array} List of fact conclusions
  */
 function extractFactsFromTrace(trace) {
-  const facts = [];
+  if (!trace || !trace.steps) return [];
 
-  if (!trace || !trace.steps) return facts;
+  // Skip these verbs - they don't produce semantic facts
+  const skipVerbs = new Set(['UseTheory', 'Persist', 'Describe', 'Identity']);
 
-  // Semantic verbs that represent facts (not just kernel operations)
-  const semanticVerbs = new Set([
-    'IS_A', 'Is', 'Has', 'HasPart', 'PartOf', 'Implies', 'Causes',
-    'Before', 'After', 'Contains', 'IsIn', 'Defines', 'Equals',
-    'GreaterThan', 'LessThan', 'HasProperty', 'HasNumericValue'
-  ]);
+  // Track ALL declarations for linking with Persist
+  const allDeclarations = new Map();  // @name -> {subject, verb, object}
 
-  // Also capture key kernel ops that represent relationships
-  const relationVerbs = new Set(['Bind', 'Add', 'Blend']);
+  // Track Persist operations: @sourceRef -> persistedName
+  const persistedRefs = new Map();
 
   for (const step of trace.steps) {
-    // Check if this is a semantic fact
-    if (semanticVerbs.has(step.verb)) {
-      facts.push({
-        type: 'fact',
-        subject: step.subjectRef,
-        verb: step.verb,
-        object: step.objectRef || '_',
-        source: 'trace',
-        stepId: step.stepId
-      });
+    if (!step.inputs || !step.inputs.verb) continue;
+
+    const { subject, verb, object } = step.inputs;
+    const declaration = step.output?.declaration;
+
+    // Track Persist operations
+    if (verb === 'Persist') {
+      // Convert $fact -> @fact for matching
+      const sourceRef = subject.startsWith('$') ? '@' + subject.slice(1) : subject;
+      persistedRefs.set(sourceRef, object);  // object is the persisted name
+      continue;
     }
 
-    // For relationship verbs, if the refs are named symbols (not @stepN)
-    if (relationVerbs.has(step.verb)) {
-      const isNamedSubject = step.subjectRef && !step.subjectRef.startsWith('@step');
-      const isNamedObject = step.objectRef && !step.objectRef.startsWith('@step');
+    // Skip non-semantic verbs
+    if (skipVerbs.has(verb)) continue;
 
-      if (isNamedSubject && isNamedObject) {
-        facts.push({
-          type: 'relation',
-          subject: step.subjectRef,
-          verb: step.verb,
-          object: step.objectRef,
-          source: 'trace',
-          stepId: step.stepId
-        });
-      }
+    // Track all other declarations
+    if (declaration) {
+      allDeclarations.set(declaration, {
+        subject: subject,
+        verb: verb,
+        object: object || '_'
+      });
     }
   }
 
-  return facts;
+  // Build result: ONLY declarations that were persisted
+  const resultFacts = [];
+  for (const [sourceRef, persistedName] of persistedRefs) {
+    const fact = allDeclarations.get(sourceRef);
+    if (fact) {
+      resultFacts.push({
+        type: 'fact',
+        declaration: sourceRef,
+        persistedName: persistedName,
+        subject: fact.subject,
+        verb: fact.verb,
+        object: fact.object,
+        source: 'dsl'
+      });
+    }
+  }
+
+  return resultFacts;
 }
 
 /**
@@ -257,9 +267,11 @@ function formatConclusion(conclusion, options = {}) {
 
   switch (conclusion.type) {
     case 'fact':
-      let factLine = `${indent}@fact ${conclusion.subject} ${conclusion.verb} ${conclusion.object}`;
+      // Use persisted name if available, otherwise use declaration or generic @fact
+      const factName = conclusion.persistedName || conclusion.declaration || 'fact';
+      let factLine = `${indent}@${factName} ${conclusion.subject} ${conclusion.verb} ${conclusion.object}`;
       if (includeConfidence && conclusion.truth !== undefined) {
-        factLine += `\n${indent}@confidence fact HasTruth ${conclusion.truth.toFixed(4)}`;
+        factLine += `\n${indent}@confidence ${factName} HasTruth ${conclusion.truth.toFixed(4)}`;
       }
       return factLine;
 

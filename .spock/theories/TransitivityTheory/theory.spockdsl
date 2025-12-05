@@ -1,0 +1,21 @@
+@TransitivityTheory theory begin
+    # Basic containment relation
+    @In verb begin
+        @container $object Identity $object
+        @element $subject Identity $subject
+        @membership $element Bind $container
+        @result $membership Move $element
+    end
+
+    # Chain two relations together as evidence
+    @TransitiveChain verb begin
+        @chain $subject Add $object
+        @result $chain Normalise $chain
+    end
+
+    # Proof strength as similarity to target relation
+    @Prove verb begin
+        @derivation $subject Distance $object
+        @result Truth Modulate $derivation
+    end
+end

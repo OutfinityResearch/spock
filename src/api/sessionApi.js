@@ -67,12 +67,11 @@ function createSessionApi(session) {
       const scores = computeScores(session);
 
       // Build result theory (clean output for production)
-      const resultTheory = buildSimpleResult({
-        subject: 'query',
-        verb: 'HasTruth',
-        truth: scores.truth,
-        confidence: scores.confidence
-      });
+      // Use buildResultTheory to extract actual facts from trace (FS-07)
+      const resultTheory = buildResultTheory(
+        { result: result, symbols: result.symbols, scores },
+        { trace, includeConfidence: true, includeMetadata: false }
+      );
 
       // Build execution trace (detailed output for eval/debug)
       const executionTrace = traceToScript(trace);

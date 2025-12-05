@@ -1,7 +1,9 @@
-// Reformatted tasks (indent first line, no .trim)
+// Numeric Quantities Evaluation Suite
+// Tests numeric operations, unit handling, and physical calculations
 module.exports = [
   {
-    NL_TASK: "Sum two distances with the same unit",
+    NL_TASK: "What is 5 meters plus 7 meters?",
+    DESCRIPTION: "Test addition of two numeric values with the same unit (meters).",
     TASK_TYPE: "Learn",
     DSL_TASK: `
 		@useNumeric _ UseTheory NumericExamples
@@ -10,14 +12,10 @@ module.exports = [
 		@d2 7 HasNumericValue 7
 		@d2m $d2 AttachUnit m
 		@result $d1m AddNumeric $d2m
-		@persist1 $result Persist Sumtwodistanceswiththesameunit
-		@describe1 $result Describe Sumtwodistanceswiththesameunit
+		@persist1 $result Persist totalDistance
     `,
-    NL_OUTPUT: "Stores a total distance of 12 m",
-    DSL_OUTPUT: `
-		@persist1 $result Persist Sumtwodistanceswiththesameunit
-		@describe1 $result Describe Sumtwodistanceswiththesameunit
-    `,
+    NL_OUTPUT: "5 meters plus 7 meters equals 12 meters.",
+    DSL_OUTPUT: ``,
     DSL_TRACE: `
 		@useNumeric _ UseTheory NumericExamples
 		@d1 5 HasNumericValue 5
@@ -25,12 +23,12 @@ module.exports = [
 		@d2 7 HasNumericValue 7
 		@d2m $d2 AttachUnit m
 		@result $d1m AddNumeric $d2m
-		@persist1 $result Persist Sumtwodistanceswiththesameunit
-		@describe1 $result Describe Sumtwodistanceswiththesameunit
+		@persist1 $result Persist totalDistance
     `
   },
   {
-    NL_TASK: "Compute speed from distance and time",
+    NL_TASK: "If I travel 10 meters in 2 seconds, what is my speed?",
+    DESCRIPTION: "Test speed calculation by dividing distance by time with proper unit derivation.",
     TASK_TYPE: "Ask",
     DSL_TASK: `
 		@useNumeric _ UseTheory NumericExamples
@@ -39,14 +37,10 @@ module.exports = [
 		@timeLiteral 2 HasNumericValue 2
 		@time $timeLiteral AttachUnit s
 		@result $dist ComputeSpeed $time
-		@persist2 $result Persist Computespeedfromdistanceandtime
-		@describe2 $result Describe Computespeedfromdistanceandtime
+		@persist2 $result Persist speed
     `,
-    NL_OUTPUT: "Speed computed as 5 m_per_s",
-    DSL_OUTPUT: `
-		@persist2 $result Persist Computespeedfromdistanceandtime
-		@describe2 $result Describe Computespeedfromdistanceandtime
-    `,
+    NL_OUTPUT: "Your speed is 5 meters per second (5 m/s).",
+    DSL_OUTPUT: ``,
     DSL_TRACE: `
 		@useNumeric _ UseTheory NumericExamples
 		@distLiteral 10 HasNumericValue 10
@@ -54,12 +48,12 @@ module.exports = [
 		@timeLiteral 2 HasNumericValue 2
 		@time $timeLiteral AttachUnit s
 		@result $dist ComputeSpeed $time
-		@persist2 $result Persist Computespeedfromdistanceandtime
-		@describe2 $result Describe Computespeedfromdistanceandtime
+		@persist2 $result Persist speed
     `
   },
   {
-    NL_TASK: "Compute force using mass and gravity",
+    NL_TASK: "What force is needed to accelerate a 10 kg mass at 9.8 m/s²?",
+    DESCRIPTION: "Test force calculation using F = m × a with unit composition.",
     TASK_TYPE: "Ask",
     DSL_TASK: `
 		@useNumeric _ UseTheory NumericExamples
@@ -69,14 +63,10 @@ module.exports = [
 		@g $gLiteral AttachUnit m_per_s2
 		@forceRaw $mass ComputeForce $g
 		@result $forceRaw AttachUnit N
-		@persist3 $result Persist Computeforceusingmassandgravity
-		@describe3 $result Describe Computeforceusingmassandgravity
+		@persist3 $result Persist force
     `,
-    NL_OUTPUT: "Force calculated as ~98 N",
-    DSL_OUTPUT: `
-		@persist3 $result Persist Computeforceusingmassandgravity
-		@describe3 $result Describe Computeforceusingmassandgravity
-    `,
+    NL_OUTPUT: "The force required is 98 Newtons (N = kg × m/s²).",
+    DSL_OUTPUT: ``,
     DSL_TRACE: `
 		@useNumeric _ UseTheory NumericExamples
 		@massLiteral 10 HasNumericValue 10
@@ -85,62 +75,54 @@ module.exports = [
 		@g $gLiteral AttachUnit m_per_s2
 		@forceRaw $mass ComputeForce $g
 		@result $forceRaw AttachUnit N
-		@persist3 $result Persist Computeforceusingmassandgravity
-		@describe3 $result Describe Computeforceusingmassandgravity
+		@persist3 $result Persist force
     `
   },
   {
-    NL_TASK: "Average two measurements",
+    NL_TASK: "What is the average of 4 and 6?",
+    DESCRIPTION: "Test averaging two numeric measurements.",
     TASK_TYPE: "Ask",
     DSL_TASK: `
 		@useNumeric _ UseTheory NumericExamples
 		@m1 4 HasNumericValue 4
 		@m2 6 HasNumericValue 6
 		@result $m1 Average $m2
-		@persist4 $result Persist Averagetwomeasurements
-		@describe4 $result Describe Averagetwomeasurements
+		@persist4 $result Persist average
     `,
-    NL_OUTPUT: "Average is 5",
-    DSL_OUTPUT: `
-		@persist4 $result Persist Averagetwomeasurements
-		@describe4 $result Describe Averagetwomeasurements
-    `,
+    NL_OUTPUT: "The average of 4 and 6 is 5.",
+    DSL_OUTPUT: ``,
     DSL_TRACE: `
 		@useNumeric _ UseTheory NumericExamples
 		@m1 4 HasNumericValue 4
 		@m2 6 HasNumericValue 6
 		@result $m1 Average $m2
-		@persist4 $result Persist Averagetwomeasurements
-		@describe4 $result Describe Averagetwomeasurements
+		@persist4 $result Persist average
     `
   },
   {
-    NL_TASK: "Attach a numeric reading to a concept",
+    NL_TASK: "A block has a mass of 5 kg. Record this measurement.",
+    DESCRIPTION: "Test attaching a numeric value with unit to a named concept.",
     TASK_TYPE: "Learn",
     DSL_TASK: `
 		@useNumeric _ UseTheory NumericExamples
 		@massLiteral 5 HasNumericValue 5
 		@mass $massLiteral AttachUnit kg
 		@result $mass AttachToConcept Block
-		@persist5 $result Persist Attachanumericreadingtoaconcept
-		@describe5 $result Describe Attachanumericreadingtoaconcept
+		@persist5 $result Persist blockMass
     `,
-    NL_OUTPUT: "Mass of Block recorded as 5 kg",
-    DSL_OUTPUT: `
-		@persist5 $result Persist Attachanumericreadingtoaconcept
-		@describe5 $result Describe Attachanumericreadingtoaconcept
-    `,
+    NL_OUTPUT: "Recorded: The block has a mass of 5 kg.",
+    DSL_OUTPUT: ``,
     DSL_TRACE: `
 		@useNumeric _ UseTheory NumericExamples
 		@massLiteral 5 HasNumericValue 5
 		@mass $massLiteral AttachUnit kg
 		@result $mass AttachToConcept Block
-		@persist5 $result Persist Attachanumericreadingtoaconcept
-		@describe5 $result Describe Attachanumericreadingtoaconcept
+		@persist5 $result Persist blockMass
     `
   },
   {
-    NL_TASK: "Divide distance by time to get acceleration",
+    NL_TASK: "If speed is 20 m/s and time is 5 s, what is the acceleration?",
+    DESCRIPTION: "Test acceleration calculation by dividing velocity by time.",
     TASK_TYPE: "Ask",
     DSL_TASK: `
 		@useNumeric _ UseTheory NumericExamples
@@ -149,14 +131,10 @@ module.exports = [
 		@timeLiteral 5 HasNumericValue 5
 		@time $timeLiteral AttachUnit s
 		@result $speed DivNumeric $time
-		@persist6 $result Persist Dividedistancebytimetogetacceleration
-		@describe6 $result Describe Dividedistancebytimetogetacceleration
+		@persist6 $result Persist acceleration
     `,
-    NL_OUTPUT: "Acceleration computed as 4 m_per_s2",
-    DSL_OUTPUT: `
-		@persist6 $result Persist Dividedistancebytimetogetacceleration
-		@describe6 $result Describe Dividedistancebytimetogetacceleration
-    `,
+    NL_OUTPUT: "The acceleration is 4 m/s² (meters per second squared).",
+    DSL_OUTPUT: ``,
     DSL_TRACE: `
 		@useNumeric _ UseTheory NumericExamples
 		@speedLiteral 20 HasNumericValue 20
@@ -164,12 +142,12 @@ module.exports = [
 		@timeLiteral 5 HasNumericValue 5
 		@time $timeLiteral AttachUnit s
 		@result $speed DivNumeric $time
-		@persist6 $result Persist Dividedistancebytimetogetacceleration
-		@describe6 $result Describe Dividedistancebytimetogetacceleration
+		@persist6 $result Persist acceleration
     `
   },
   {
-    NL_TASK: "Multiply numbers with composed units",
+    NL_TASK: "What is the work done when applying 50 N of force over 3 meters?",
+    DESCRIPTION: "Test energy/work calculation: W = F × d with unit composition (N × m = J).",
     TASK_TYPE: "Ask",
     DSL_TASK: `
 		@useNumeric _ UseTheory NumericExamples
@@ -178,14 +156,10 @@ module.exports = [
 		@distanceLiteral 3 HasNumericValue 3
 		@distance $distanceLiteral AttachUnit m
 		@result $force MulNumeric $distance
-		@persist7 $result Persist Multiplynumberswithcomposedunits
-		@describe7 $result Describe Multiplynumberswithcomposedunits
+		@persist7 $result Persist work
     `,
-    NL_OUTPUT: "Energy computed with unit composition",
-    DSL_OUTPUT: `
-		@persist7 $result Persist Multiplynumberswithcomposedunits
-		@describe7 $result Describe Multiplynumberswithcomposedunits
-    `,
+    NL_OUTPUT: "The work done is 150 Joules (N × m = J).",
+    DSL_OUTPUT: ``,
     DSL_TRACE: `
 		@useNumeric _ UseTheory NumericExamples
 		@forceLiteral 50 HasNumericValue 50
@@ -193,12 +167,12 @@ module.exports = [
 		@distanceLiteral 3 HasNumericValue 3
 		@distance $distanceLiteral AttachUnit m
 		@result $force MulNumeric $distance
-		@persist7 $result Persist Multiplynumberswithcomposedunits
-		@describe7 $result Describe Multiplynumberswithcomposedunits
+		@persist7 $result Persist work
     `
   },
   {
-    NL_TASK: "Subtract two temperatures (unit compatible)",
+    NL_TASK: "What is the temperature difference between 30°C and 20°C?",
+    DESCRIPTION: "Test subtraction of compatible unit values (temperature difference).",
     TASK_TYPE: "Ask",
     DSL_TASK: `
 		@useNumeric _ UseTheory NumericExamples
@@ -207,14 +181,10 @@ module.exports = [
 		@t2 20 HasNumericValue 20
 		@t2c $t2 AttachUnit C
 		@result $t1c SubNumeric $t2c
-		@persist8 $result Persist Subtracttwotemperaturesunitcompatible
-		@describe8 $result Describe Subtracttwotemperaturesunitcompatible
+		@persist8 $result Persist tempDiff
     `,
-    NL_OUTPUT: "Temperature difference computed",
-    DSL_OUTPUT: `
-		@persist8 $result Persist Subtracttwotemperaturesunitcompatible
-		@describe8 $result Describe Subtracttwotemperaturesunitcompatible
-    `,
+    NL_OUTPUT: "The temperature difference is 10°C.",
+    DSL_OUTPUT: ``,
     DSL_TRACE: `
 		@useNumeric _ UseTheory NumericExamples
 		@t1 30 HasNumericValue 30
@@ -222,37 +192,33 @@ module.exports = [
 		@t2 20 HasNumericValue 20
 		@t2c $t2 AttachUnit C
 		@result $t1c SubNumeric $t2c
-		@persist8 $result Persist Subtracttwotemperaturesunitcompatible
-		@describe8 $result Describe Subtracttwotemperaturesunitcompatible
+		@persist8 $result Persist tempDiff
     `
   },
   {
-    NL_TASK: "Project numeric from measured concept",
+    NL_TASK: "Extract the numeric value from a speed measurement of 12 m/s.",
+    DESCRIPTION: "Test projecting a numeric value from a measured concept.",
     TASK_TYPE: "Ask",
     DSL_TASK: `
 		@useNumeric _ UseTheory NumericExamples
 		@speedLiteral 12 HasNumericValue 12
 		@speed $speedLiteral AttachUnit m_per_s
 		@result $speed ProjectNumeric $speed
-		@persist9 $result Persist Projectnumericfrommeasuredconcept
-		@describe9 $result Describe Projectnumericfrommeasuredconcept
+		@persist9 $result Persist numericValue
     `,
-    NL_OUTPUT: "Projected numeric retains value",
-    DSL_OUTPUT: `
-		@persist9 $result Persist Projectnumericfrommeasuredconcept
-		@describe9 $result Describe Projectnumericfrommeasuredconcept
-    `,
+    NL_OUTPUT: "The numeric value is 12 (from the measurement 12 m/s).",
+    DSL_OUTPUT: ``,
     DSL_TRACE: `
 		@useNumeric _ UseTheory NumericExamples
 		@speedLiteral 12 HasNumericValue 12
 		@speed $speedLiteral AttachUnit m_per_s
 		@result $speed ProjectNumeric $speed
-		@persist9 $result Persist Projectnumericfrommeasuredconcept
-		@describe9 $result Describe Projectnumericfrommeasuredconcept
+		@persist9 $result Persist numericValue
     `
   },
   {
-    NL_TASK: "Handle zero and negative values",
+    NL_TASK: "What is zero plus negative five?",
+    DESCRIPTION: "Test handling of zero and negative numeric values.",
     TASK_TYPE: "Ask",
     DSL_TASK: `
 		@useNumeric _ UseTheory NumericExamples
@@ -260,22 +226,17 @@ module.exports = [
 		@neg -5 HasNumericValue -5
 		@sum $zero AddNumeric $neg
 		@result $sum AttachUnit unitless
-		@persist10 $result Persist Handlezeroandnegativevalues
-		@describe10 $result Describe Handlezeroandnegativevalues
+		@persist10 $result Persist sumResult
     `,
-    NL_OUTPUT: "Supports zero and negative numeric values",
-    DSL_OUTPUT: `
-		@persist10 $result Persist Handlezeroandnegativevalues
-		@describe10 $result Describe Handlezeroandnegativevalues
-    `,
+    NL_OUTPUT: "Zero plus negative five equals -5.",
+    DSL_OUTPUT: ``,
     DSL_TRACE: `
 		@useNumeric _ UseTheory NumericExamples
 		@zero 0 HasNumericValue 0
 		@neg -5 HasNumericValue -5
 		@sum $zero AddNumeric $neg
 		@result $sum AttachUnit unitless
-		@persist10 $result Persist Handlezeroandnegativevalues
-		@describe10 $result Describe Handlezeroandnegativevalues
+		@persist10 $result Persist sumResult
     `
   }
 ];

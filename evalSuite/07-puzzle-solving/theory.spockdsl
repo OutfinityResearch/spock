@@ -1,8 +1,39 @@
 @PuzzleTheory theory begin
+    # Basic fact assertion: subject Is object
+    @Is verb begin
+        @binding $subject Bind $object
+        @result $binding Move $subject
+    end
+
     # Assign a colour to a region
     @HasColor verb begin
         @binding $subject Bind $object
         @result $binding Move $subject
+    end
+
+    # Logical conjunction
+    @And verb begin
+        @combined $subject Add $object
+        @result $combined Normalise $combined
+    end
+
+    # Mutual exclusion
+    @Excludes verb begin
+        @excl $subject Distance $object
+        @negated $excl Negate $excl
+        @result $negated Move $subject
+    end
+
+    # Implication
+    @Implies verb begin
+        @similarity $subject Distance $object
+        @result Truth Modulate $similarity
+    end
+
+    # Requirement
+    @Requires verb begin
+        @req $subject Bind $object
+        @result $req Move $object
     end
 
     # Combine two constraints

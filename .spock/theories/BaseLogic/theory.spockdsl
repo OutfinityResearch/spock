@@ -2,7 +2,7 @@
     @Is verb begin
         # Basic binding: combine subject and object and move toward subject for coherence
         @binding $subject Bind $object
-        @result @binding Move $subject
+        @result $binding Move $subject
     end
 
     @And verb begin
@@ -13,7 +13,7 @@
     @Or verb begin
         # Combine and normalise to avoid magnitude explosion
         @sum $subject Add $object
-        @result @sum Normalise @sum
+        @result $sum Normalise $sum
     end
 
     @Not verb begin
@@ -24,6 +24,6 @@
     @Implies verb begin
         # Truth projection using cosine similarity
         @similarity $subject Distance $object
-        @result Truth Modulate @similarity
+        @result Truth Modulate $similarity
     end
 end

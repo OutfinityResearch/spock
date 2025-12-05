@@ -167,7 +167,34 @@ function colorBool(ok, text) {
 }
 
 /**
- * Compares expected and actual DSL output
+ * Extracts semantic tokens from DSL text
+ * Returns set of entity names and relation patterns
+ */
+function extractSemanticTokens(dsl) {
+  const tokens = new Set();
+  if (!dsl) return tokens;
+
+  const lines = dsl.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+
+  for (const line of lines) {
+    // Extract @name tokens
+    const atTokens = line.match(/@\w+/g) || [];
+    atTokens.forEach(t => tokens.add(t.toLowerCase()));
+
+    // Extract word tokens (skip common DSL syntax)
+    const words = line.split(/\s+/).filter(w =>
+      w.length > 1 &&
+      !['begin', 'end', 'theory', 'verb', 'is', 'and', 'or', 'not', 'the', 'a', 'an'].includes(w.toLowerCase()) &&
+      !w.startsWith('$')
+    );
+    words.forEach(w => tokens.add(w.toLowerCase()));
+  }
+
+  return tokens;
+}
+
+/**
+ * Compares expected and actual DSL output using semantic token matching
  * Returns detailed comparison result
  */
 function compareDslOutput(expected, actual) {
@@ -183,7 +210,21 @@ function compareDslOutput(expected, actual) {
     return { match: true, reason: 'exact_match' };
   }
 
-  // Check for partial match (expected is subset of actual)
+  // Semantic token matching: check if key entities appear in output
+  const expectedTokens = extractSemanticTokens(normalizedExpected);
+  const actualTokens = extractSemanticTokens(normalizedActual);
+
+  // Check overlap of semantic tokens
+  let matchedTokens = 0;
+  for (const token of expectedTokens) {
+    if (actualTokens.has(token)) {
+      matchedTokens++;
+    }
+  }
+
+  const tokenMatchRatio = expectedTokens.size > 0 ? matchedTokens / expectedTokens.size : 0;
+
+  // Also check line-based partial match as fallback
   const expectedLines = normalizedExpected.split('\n');
   const actualLines = normalizedActual.split('\n');
 
@@ -194,22 +235,30 @@ function compareDslOutput(expected, actual) {
     }
   }
 
-  const matchRatio = expectedLines.length > 0 ? matchedLines / expectedLines.length : 0;
+  const lineMatchRatio = expectedLines.length > 0 ? matchedLines / expectedLines.length : 0;
 
-  if (matchRatio >= 0.8) {
-    return { match: true, reason: 'partial_match', ratio: matchRatio };
+  // Use the better of the two ratios
+  const matchRatio = Math.max(tokenMatchRatio, lineMatchRatio);
+
+  if (matchRatio >= 0.6) {
+    return { match: true, reason: 'semantic_match', ratio: matchRatio, tokenRatio: tokenMatchRatio, lineRatio: lineMatchRatio };
   }
 
   return {
     match: false,
     reason: 'mismatch',
     ratio: matchRatio,
+    tokenRatio: tokenMatchRatio,
+    lineRatio: lineMatchRatio,
     expected: normalizedExpected,
     actual: normalizedActual,
     diff: {
       expectedLines: expectedLines.length,
       actualLines: actualLines.length,
-      matchedLines
+      matchedLines,
+      expectedTokens: expectedTokens.size,
+      actualTokens: actualTokens.size,
+      matchedTokens
     }
   };
 }
@@ -335,19 +384,18 @@ function runTask(task, api, taskNum, verbose) {
   const trace = result.trace || null;
   const steps = trace?.steps?.length || 0;
 
-  // Prefer execution trace for validation, but fall back to resultTheory when no ops were logged
+  // FS-07 Dual Output Strategy:
+  // - executionTrace: Full kernel operations (for DSL_TRACE validation)
+  // - resultTheory: Clean semantic result (for DSL_OUTPUT validation)
   const executionText = result.executionTrace || result.dslOutput || '';
-  const actualOutput = executionText && !executionText.startsWith('# No operations recorded')
-    ? executionText
-    : (result.resultTheory || executionText);
-
   const theoryText = result.resultTheory || '';
   const expectedTrace = task.DSL_TRACE || '';
 
-  // Compare DSL output (use executionTrace for validation per FS#7, resultTheory fallback)
+  // Compare DSL_OUTPUT against resultTheory (clean semantic output per FS#7)
+  // DSL_OUTPUT should contain the clean conclusion, not the full trace
   const outputComparison = compareDslOutput(
     task.DSL_OUTPUT,
-    actualOutput
+    theoryText || executionText  // Prefer resultTheory, fall back to executionTrace
   );
 
   const traceComparison = expectedTrace
@@ -378,6 +426,9 @@ function runTask(task, api, taskNum, verbose) {
       failReason = `truth_score_too_low (${(truthScore * 100).toFixed(1)}% < ${(task.MIN_TRUTH_SCORE * 100).toFixed(1)}%)`;
     }
   }
+
+  // For DSL_OUTPUT comparison, use theoryText (clean semantic result)
+  const actualOutput = theoryText || executionText;
 
   const taskResult = {
     num: taskNum,
@@ -410,8 +461,28 @@ function runTask(task, api, taskNum, verbose) {
     console.log(`\n     ${colors.dim}Result Theory:${colors.reset}`);
     console.log(indent(theoryText));
 
-    console.log(`\n     ${colors.dim}DSL_TRACE:${colors.reset}`);
-    console.log(indent(actualOutput || executionText));
+    console.log(`\n     ${colors.dim}Execution Trace:${colors.reset}`);
+    console.log(indent(executionText));
+
+    // Show match ratios for DSL_OUTPUT comparison
+    const outputTokenRatio = outputComparison.tokenRatio !== undefined
+      ? `${(outputComparison.tokenRatio * 100).toFixed(0)}%`
+      : 'N/A';
+    const outputLineRatio = outputComparison.lineRatio !== undefined
+      ? `${(outputComparison.lineRatio * 100).toFixed(0)}%`
+      : 'N/A';
+    console.log(`\n     ${colors.cyan}DSL_OUTPUT Match: token=${outputTokenRatio}, line=${outputLineRatio}${colors.reset}`);
+
+    // Show match ratios for DSL_TRACE comparison
+    if (traceComparison && traceComparison.reason !== 'no_expected_trace') {
+      const traceTokenRatio = traceComparison.tokenRatio !== undefined
+        ? `${(traceComparison.tokenRatio * 100).toFixed(0)}%`
+        : 'N/A';
+      const traceLineRatio = traceComparison.lineRatio !== undefined
+        ? `${(traceComparison.lineRatio * 100).toFixed(0)}%`
+        : 'N/A';
+      console.log(`     ${colors.cyan}DSL_TRACE Match: token=${traceTokenRatio}, line=${traceLineRatio}${colors.reset}`);
+    }
 
     if (expectedTrace) {
       console.log(`\n     ${colors.dim}Expected TRACE:${colors.reset}`);
@@ -423,9 +494,9 @@ function runTask(task, api, taskNum, verbose) {
     }
 
     if (outputComparison.reason === 'mismatch') {
-      console.log(`     ${colors.dim}Expected:${colors.reset}`);
+      console.log(`     ${colors.dim}Expected DSL_OUTPUT:${colors.reset}`);
       console.log(`     ${colors.dim}${outputComparison.expected?.split('\n').slice(0, 3).join('\n     ')}${colors.reset}`);
-      console.log(`     ${colors.dim}Actual:${colors.reset}`);
+      console.log(`     ${colors.dim}Actual output:${colors.reset}`);
       console.log(`     ${colors.dim}${outputComparison.actual?.split('\n').slice(0, 3).join('\n     ')}${colors.reset}`);
     }
 

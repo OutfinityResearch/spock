@@ -5,9 +5,46 @@
         @result $link Move $subject
     end
 
+    # Leads to (causal sequence)
+    @LeadsTo verb begin
+        @transition $subject Bind $object
+        @result $transition Move $object
+    end
+
+    # Because (explanation link)
+    @Because verb begin
+        @reason $subject Bind $object
+        @result $reason Move $subject
+    end
+
+    # Prevents (negative causation)
+    @Prevents verb begin
+        @block $subject Distance $object
+        @negated $block Negate $block
+        @result $negated Move $subject
+    end
+
+    # Chained cause (transitive causation)
+    @ChainedCause verb begin
+        @chain $subject Add $object
+        @result $chain Normalise $chain
+    end
+
+    # Aggregate (combine multiple facts/causes)
+    @Add verb begin
+        @combined $subject Add $object
+        @result $combined Normalise $combined
+    end
+
     # Aggregate multiple causes
     @CombineCauses verb begin
         @result $subject Add $object
+    end
+
+    # Explains relationship
+    @Explains verb begin
+        @expl $subject Distance $object
+        @result Truth Modulate $expl
     end
 
     # Explain an effect by measuring alignment of a cause

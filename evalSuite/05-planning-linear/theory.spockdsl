@@ -1,4 +1,59 @@
 @LinearPlanning theory begin
+    # Basic state assignment: subject is in state object
+    @State verb begin
+        @binding $subject Bind $object
+        @result $binding Move $subject
+    end
+
+    # State transition: subject leads to new state object
+    @LeadsTo verb begin
+        @transition $subject Bind $object
+        @result $transition Move $object
+    end
+
+    # Action execution: subject performs action object
+    @Action verb begin
+        @act $subject Bind $object
+        @result $act Move $subject
+    end
+
+    # Precondition enabling: subject enables action object
+    @Enables verb begin
+        @enable $subject And $object
+        @result $enable Normalise $enable
+    end
+
+    # Requirement: subject requires condition object
+    @Requires verb begin
+        @req $subject Bind $object
+        @result $req Move $object
+    end
+
+    # Blocking: subject blocks action object
+    @Blocks verb begin
+        @block $subject Distance $object
+        @negated $block Negate $block
+        @result $negated Move $subject
+    end
+
+    # Resource consumption
+    @Consumes verb begin
+        @consume $subject Distance $object
+        @result $consume Move $subject
+    end
+
+    # Precondition check
+    @Precondition verb begin
+        @pre $subject Bind $object
+        @result $pre Move $subject
+    end
+
+    # Effect of action
+    @Causes verb begin
+        @effect $subject Bind $object
+        @result $effect Move $object
+    end
+
     # Move from one location to another
     @GoTo verb begin
         @path $subject Bind $object
