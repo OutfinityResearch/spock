@@ -5,7 +5,7 @@
 | Field | Value |
 |-------|-------|
 | **Primary role** | Project high-dimensional vectors to 2D or 3D coordinates for visualisation using configurable methods such as PCA or simple linear projections. |
-| **Public functions** | `projectVectors(vectors, method)` where `vectors` is an array of `{id, vec}` and the result is an array of `{id, x, y, z?}`. |
+| **Public functions** | `projectVectors(vectors, method)`, `getAvailableMethods()`, `pca2d(vectors)`, `pca3d(vectors)`, `linear2d(vectors)`, `linear3d(vectors)` |
 | **Depends on** | `src/kernel/vectorSpace.js` (for basic numeric ops), optional small math utilities |
 | **Used by** | `src/viz/vizApi.js` |
 
@@ -60,7 +60,6 @@ Projects an array of high-dimensional vectors to 2D or 3D.
 | `'pca3d'` | Principal Component Analysis to 3D |
 | `'linear2d'` | Simple linear projection using first 2 dims |
 | `'linear3d'` | Simple linear projection using first 3 dims |
-| `'umap2d'` | UMAP to 2D (if available) |
 
 **Example:**
 ```javascript

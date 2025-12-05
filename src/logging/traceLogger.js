@@ -1,6 +1,20 @@
 /**
- * @fileoverview Execution trace logging for DSL explainability
- * @implements URS-008, FS-07, DS DSL
+ * @fileoverview Execution Trace Logger for DSL Explainability
+ * @implements URS-008, FS-07 (Dual Output Strategy)
+ *
+ * Captures ALL kernel operations as a replayable DSL script.
+ * This is the "Execution Trace" part of FS#7 Dual Output.
+ *
+ * Purpose:
+ * - Testing (EvalSuite): Validates algorithm step-by-step
+ * - Debugging: Shows exactly what operations happened
+ * - Audit: Complete record of reasoning process
+ *
+ * Format: Linear DSL script with all intermediate operations:
+ *   @step1 humans_vec Bind mortal_vec
+ *   @step2 step1 Normalise
+ *   @step3 socrates_vec Distance step2
+ *   @result step3
  */
 
 'use strict';
@@ -12,68 +26,185 @@
 const activeTraces = new Map();
 
 /**
- * Creates a trace step object
- * @param {number} index - Step number
- * @param {string} dslStatement - The DSL statement being executed
- * @param {Object} inputs - Input information
- * @param {Object} output - Output information
- * @returns {Object} TraceStep
+ * Step counter per trace for unique naming
+ * @type {Map<string, number>}
  */
-function createTraceStep(index, dslStatement, inputs, output) {
+const stepCounters = new Map();
+
+function stripAt(name) {
+  if (typeof name !== 'string') return name;
+  return name.startsWith('@') ? name.slice(1) : name;
+}
+
+/**
+ * Creates a kernel operation step
+ * @param {string} stepId - Unique step identifier (@step1, @step2, etc.)
+ * @param {string} verb - Kernel verb name (Add, Bind, Distance, etc.)
+ * @param {string} subjectRef - Reference to subject (symbol name or @stepN)
+ * @param {string|null} objectRef - Reference to object (or null for unary ops)
+ * @param {Object} metadata - Additional metadata
+ * @returns {Object} KernelStep
+ */
+function createKernelStep(stepId, verb, subjectRef, objectRef, metadata = {}) {
   return {
-    index,
-    dslStatement,
-    timestamp: new Date().toISOString(),
-    inputs,
-    output
+    stepId,
+    verb,
+    subjectRef,
+    objectRef,
+    timestamp: Date.now(),
+    metadata
   };
 }
 
 /**
- * Starts a new trace for a context
- * @param {string} contextId - Unique context identifier (e.g., session ID)
+ * Starts a new execution trace
+ * @param {string} contextId - Unique context identifier (e.g., session ID + method)
  * @returns {Object} Trace object
  */
 function startTrace(contextId) {
   const trace = {
     contextId,
-    startTime: new Date().toISOString(),
+    startTime: Date.now(),
     endTime: null,
     steps: [],
+    symbolMap: new Map(),  // Maps internal values to symbol names
     status: 'active'
   };
 
   activeTraces.set(contextId, trace);
+  stepCounters.set(contextId, 0);
   return trace;
 }
 
 /**
- * Logs a single execution step
+ * Registers a symbol for reference tracking
  * @param {string} contextId - Context identifier
- * @param {Object} stepInfo - Step information
- * @param {string} stepInfo.dslStatement - The DSL statement
- * @param {Object} stepInfo.inputs - Input values info
- * @param {Object} stepInfo.output - Output value info
+ * @param {string} symbolName - The DSL symbol name
+ * @param {*} value - The value (for matching in operations)
  */
-function logStep(contextId, stepInfo) {
+function registerSymbol(contextId, symbolName, value) {
   const trace = activeTraces.get(contextId);
-  if (!trace) {
-    // No active trace, silently ignore
-    return;
+  if (!trace) return;
+
+  // Store a reference key for matching (strip @ for operands)
+  const key = getValueKey(value);
+  if (key) {
+    trace.symbolMap.set(key, stripAt(symbolName));
+  }
+}
+
+/**
+ * Generates a unique key for a value (for symbol matching)
+ * @param {*} value - Any value
+ * @returns {string|null} Key or null
+ */
+function getValueKey(value) {
+  if (value === null || value === undefined) return null;
+
+  if (ArrayBuffer.isView(value)) {
+    // For typed arrays, use first few elements as key
+    const preview = [];
+    for (let i = 0; i < Math.min(5, value.length); i++) {
+      preview.push(value[i].toFixed(4));
+    }
+    return `vec:${value.length}:${preview.join(',')}`;
   }
 
-  if (trace.status !== 'active') {
-    return;
+  if (typeof value === 'number') {
+    return `num:${value.toFixed(6)}`;
   }
 
-  const step = createTraceStep(
-    trace.steps.length,
-    stepInfo.dslStatement,
-    stepInfo.inputs || {},
-    stepInfo.output || {}
-  );
+  if (typeof value === 'object' && value.type) {
+    if (value.type === 'VECTOR' && value.value) {
+      return getValueKey(value.value);
+    }
+    if (value.type === 'NUMERIC') {
+      return `numeric:${value.value}:${value.unit || ''}`;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Finds the reference name for a value
+ * @param {Object} trace - Trace object
+ * @param {*} value - Value to find
+ * @returns {string} Reference name (symbol name, @stepN, or 'anonymous')
+ */
+function findRef(trace, value) {
+  const key = getValueKey(value);
+  if (!key) return 'anonymous';
+
+  // Check symbol map first
+  if (trace.symbolMap.has(key)) {
+    return stripAt(trace.symbolMap.get(key));
+  }
+
+  // Check previous step outputs
+  for (let i = trace.steps.length - 1; i >= 0; i--) {
+    const step = trace.steps[i];
+    if (step.outputKey === key) {
+      return stripAt(step.stepId);
+    }
+  }
+
+  return 'anonymous';
+}
+
+/**
+ * Logs a kernel operation
+ * @param {string} contextId - Context identifier
+ * @param {Object} operation - Operation details
+ * @param {string} operation.verb - Kernel verb (Add, Bind, Distance, etc.)
+ * @param {*} operation.subject - Subject value
+ * @param {*} operation.object - Object value (optional)
+ * @param {*} operation.result - Result value
+ * @param {Object} operation.metadata - Additional info
+ */
+function logKernelOp(contextId, operation) {
+  const trace = activeTraces.get(contextId);
+  if (!trace || trace.status !== 'active') return;
+
+  // Get next step ID
+  const stepNum = stepCounters.get(contextId) + 1;
+  stepCounters.set(contextId, stepNum);
+  const stepId = `@step${stepNum}`;
+
+  // Find references for subject and object
+  const subjectRef = findRef(trace, operation.subject);
+  const objectRef = operation.object !== undefined ? findRef(trace, operation.object) : null;
+
+  // Create step
+  const step = createKernelStep(stepId, operation.verb, subjectRef, objectRef, operation.metadata || {});
+
+  // Store output key for future reference
+  step.outputKey = getValueKey(operation.result);
+
+  // Store raw values for detailed inspection
+  step.rawSubject = summarizeValue(operation.subject);
+  step.rawObject = operation.object !== undefined ? summarizeValue(operation.object) : null;
+  step.rawResult = summarizeValue(operation.result);
 
   trace.steps.push(step);
+
+  // Also register this step's output
+  if (step.outputKey) {
+    trace.symbolMap.set(step.outputKey, stripAt(stepId));
+  }
+}
+
+/**
+ * Marks a step as the final result
+ * @param {string} contextId - Context identifier
+ * @param {*} resultValue - The final result value
+ */
+function markResult(contextId, resultValue) {
+  const trace = activeTraces.get(contextId);
+  if (!trace) return;
+
+  const ref = findRef(trace, resultValue);
+  trace.resultRef = stripAt(ref);
 }
 
 /**
@@ -83,18 +214,26 @@ function logStep(contextId, stepInfo) {
  */
 function endTrace(contextId) {
   const trace = activeTraces.get(contextId);
-  if (!trace) {
-    return null;
-  }
+  if (!trace) return null;
 
-  trace.endTime = new Date().toISOString();
+  trace.endTime = Date.now();
   trace.status = 'completed';
+  trace.duration = trace.endTime - trace.startTime;
 
-  // Create immutable copy
-  const snapshot = JSON.parse(JSON.stringify(trace));
+  // Create immutable snapshot (convert Map to object)
+  const snapshot = {
+    contextId: trace.contextId,
+    startTime: trace.startTime,
+    endTime: trace.endTime,
+    duration: trace.duration,
+    status: trace.status,
+    steps: [...trace.steps],
+    resultRef: trace.resultRef || null
+  };
 
   // Clean up
   activeTraces.delete(contextId);
+  stepCounters.delete(contextId);
 
   return Object.freeze(snapshot);
 }
@@ -105,37 +244,90 @@ function endTrace(contextId) {
  * @returns {Object|null} Trace or null
  */
 function getTrace(contextId) {
-  return activeTraces.get(contextId) || null;
+  return activeTraces.get(contextId);
 }
 
 /**
  * Converts a trace to a replayable DSL script
+ * This is the executionTrace output per FS#7
+ *
  * @param {Object} trace - Completed trace
- * @returns {string} DSL script that reproduces the trace
+ * @returns {string} DSL script that reproduces the execution
  */
 function traceToScript(trace) {
-  if (!trace || !trace.steps) {
-    return '';
+  if (!trace || !trace.steps || trace.steps.length === 0) {
+    return '# No operations recorded';
   }
 
-  return trace.steps
-    .map(step => step.dslStatement)
-    .join('\n');
+  const lines = [
+    '# Execution Trace - All kernel operations',
+    `# Context: ${trace.contextId}`,
+    `# Duration: ${trace.duration}ms`,
+    `# Steps: ${trace.steps.length}`,
+    ''
+  ];
+
+  for (const step of trace.steps) {
+    if (step.dslStatement) {
+      lines.push(step.dslStatement);
+      continue;
+    }
+    // Format: @stepN subject Verb object
+    if (step.objectRef) {
+      lines.push(`${step.stepId} ${stripAt(step.subjectRef)} ${step.verb} ${stripAt(step.objectRef)}`);
+    } else {
+      lines.push(`${step.stepId} ${stripAt(step.subjectRef)} ${step.verb} _`);
+    }
+  }
+
+  // Add result marker
+  if (trace.resultRef) {
+    lines.push('');
+    lines.push(`@result ${trace.resultRef}`);
+  }
+
+  return lines.join('\n');
 }
 
 /**
- * Formats a trace step for display
- * @param {Object} step - Trace step
- * @returns {string} Formatted string
+ * Converts trace to detailed format with values
+ * @param {Object} trace - Completed trace
+ * @returns {string} Detailed trace with values
  */
-function formatStep(step) {
-  const inputStr = Object.entries(step.inputs || {})
-    .map(([k, v]) => `${k}=${summarizeValue(v)}`)
-    .join(', ');
+function traceToDetailedScript(trace) {
+  if (!trace || !trace.steps || trace.steps.length === 0) {
+    return '# No operations recorded';
+  }
 
-  const outputStr = summarizeValue(step.output);
+  const lines = [
+    '# Detailed Execution Trace',
+    `# Context: ${trace.contextId}`,
+    `# Duration: ${trace.duration}ms`,
+    ''
+  ];
 
-  return `[${step.index}] ${step.dslStatement}\n    inputs: {${inputStr}}\n    output: ${outputStr}`;
+  for (const step of trace.steps) {
+    // DSL line
+    if (step.objectRef) {
+      lines.push(`${step.stepId} ${step.subjectRef} ${step.verb} ${step.objectRef}`);
+    } else {
+      lines.push(`${step.stepId} ${step.subjectRef} ${step.verb} _`);
+    }
+
+    // Value comments
+    lines.push(`  # subject: ${step.rawSubject}`);
+    if (step.rawObject) {
+      lines.push(`  # object: ${step.rawObject}`);
+    }
+    lines.push(`  # result: ${step.rawResult}`);
+    lines.push('');
+  }
+
+  if (trace.resultRef) {
+    lines.push(`@result ${trace.resultRef}`);
+  }
+
+  return lines.join('\n');
 }
 
 /**
@@ -149,31 +341,46 @@ function summarizeValue(value) {
   }
 
   if (typeof value === 'number') {
-    return value.toFixed(4);
+    return value.toFixed(6);
   }
 
   if (typeof value === 'string') {
-    return value.length > 20 ? value.substring(0, 20) + '...' : value;
+    return value.length > 30 ? `"${value.substring(0, 30)}..."` : `"${value}"`;
   }
 
-  if (value.type) {
-    // Typed value
-    switch (value.type) {
-      case 'VECTOR':
-        return `VECTOR[${value.value?.length || 0}]`;
-      case 'SCALAR':
-        return `SCALAR(${value.value?.toFixed(4) || 0})`;
-      case 'NUMERIC':
-        return `NUMERIC(${value.value}${value.unit ? ' ' + value.unit : ''})`;
-      case 'MACRO':
-        return `MACRO(${value.name || 'anonymous'})`;
-      default:
-        return `${value.type}(...)`;
-    }
+  if (typeof value === 'boolean') {
+    return String(value);
   }
 
   if (ArrayBuffer.isView(value)) {
-    return `TypedArray[${value.length}]`;
+    // Compute norm for vectors
+    let normSq = 0;
+    for (let i = 0; i < value.length; i++) {
+      normSq += value[i] * value[i];
+    }
+    const norm = Math.sqrt(normSq);
+
+    const preview = [];
+    for (let i = 0; i < Math.min(3, value.length); i++) {
+      preview.push(value[i].toFixed(3));
+    }
+    const ellipsis = value.length > 3 ? '...' : '';
+    return `Vector[${value.length}](${preview.join(', ')}${ellipsis}) norm=${norm.toFixed(4)}`;
+  }
+
+  if (value.type) {
+    switch (value.type) {
+      case 'VECTOR':
+        return value.value ? summarizeValue(value.value) : 'VECTOR(empty)';
+      case 'SCALAR':
+        return `SCALAR(${(value.value || 0).toFixed(6)})`;
+      case 'NUMERIC':
+        return `NUMERIC(${value.value}${value.unit ? ' ' + value.unit : ''})`;
+      case 'MEASURED':
+        return `MEASURED(${value.value}${value.unit ? ' ' + value.unit : ''})`;
+      default:
+        return `${value.type}(...)`;
+    }
   }
 
   if (Array.isArray(value)) {
@@ -181,10 +388,24 @@ function summarizeValue(value) {
   }
 
   if (typeof value === 'object') {
-    return '{...}';
+    const keys = Object.keys(value);
+    return `{${keys.slice(0, 3).join(', ')}${keys.length > 3 ? '...' : ''}}`;
   }
 
   return String(value);
+}
+
+/**
+ * Formats a trace step for display
+ * @param {Object} step - Trace step
+ * @returns {string} Formatted string
+ */
+function formatStep(step) {
+  const dslLine = step.objectRef
+    ? `${step.stepId} ${step.subjectRef} ${step.verb} ${step.objectRef}`
+    : `${step.stepId} ${step.subjectRef} ${step.verb} _`;
+
+  return `${dslLine}\n  subject: ${step.rawSubject}\n  ${step.rawObject ? `object: ${step.rawObject}\n  ` : ''}result: ${step.rawResult}`;
 }
 
 /**
@@ -196,19 +417,23 @@ function formatTrace(trace) {
   if (!trace) return 'No trace';
 
   const lines = [
-    `Trace: ${trace.contextId}`,
+    `═══ Execution Trace: ${trace.contextId} ═══`,
     `Status: ${trace.status}`,
-    `Started: ${trace.startTime}`,
-    trace.endTime ? `Ended: ${trace.endTime}` : '',
+    `Duration: ${trace.duration}ms`,
     `Steps: ${trace.steps.length}`,
-    '---'
+    '───────────────────────────────────────'
   ];
 
   for (const step of trace.steps) {
     lines.push(formatStep(step));
+    lines.push('');
   }
 
-  return lines.filter(Boolean).join('\n');
+  if (trace.resultRef) {
+    lines.push(`@result ${trace.resultRef}`);
+  }
+
+  return lines.join('\n');
 }
 
 /**
@@ -216,16 +441,58 @@ function formatTrace(trace) {
  */
 function clearAll() {
   activeTraces.clear();
+  stepCounters.clear();
+}
+
+// Legacy compatibility - these map to the old interface
+function logStep(contextId, stepInfo) {
+  const trace = activeTraces.get(contextId);
+  if (!trace || trace.status !== 'active') return;
+
+  const step = createTraceStep(
+    trace.steps.length,
+    stepInfo.dslStatement,
+    stepInfo.inputs || {},
+    stepInfo.output || {},
+    {
+      verb: stepInfo.verb,
+      subject: stepInfo.subject,
+      object: stepInfo.object
+    }
+  );
+
+  trace.steps.push(step);
+}
+
+function createTraceStep(index, dslStatement, inputs, output, extra = {}) {
+  return {
+    index,
+    dslStatement,
+    timestamp: new Date().toISOString(),
+    inputs,
+    output,
+    verb: extra.verb,
+    subject: extra.subject,
+    object: extra.object
+  };
 }
 
 module.exports = {
+  // New API (FS#7 compliant)
   startTrace,
-  logStep,
   endTrace,
   getTrace,
+  registerSymbol,
+  logKernelOp,
+  markResult,
   traceToScript,
+  traceToDetailedScript,
   formatTrace,
   formatStep,
   summarizeValue,
-  clearAll
+  clearAll,
+
+  // Legacy compatibility
+  logStep,
+  createTraceStep
 };

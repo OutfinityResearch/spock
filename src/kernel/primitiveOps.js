@@ -1,11 +1,22 @@
 /**
  * @fileoverview Geometric primitive verbs as pure vector operations
  * @implements URS-003, FS-02, FS-03, DS Kernel
+ *
+ * These are the 8 core kernel verbs that form the geometric basis:
+ * - Add: Superposition (blend concepts)
+ * - Bind: Association (Hadamard product for role-filler binding)
+ * - Negate: Logical negation (flip vector)
+ * - Distance: Similarity measurement (cosine similarity)
+ * - Move: State transition (alias for Add)
+ * - Modulate: Scaling/gating (polymorphic: scalar or vector)
+ * - Identity: Pass-through (copy)
+ * - Normalise: Unit vector projection
  */
 
 'use strict';
 
 const vectorSpace = require('./vectorSpace');
+const debug = require('../logging/debugLogger').kernel;
 
 /**
  * Element-wise addition of two vectors
@@ -16,7 +27,14 @@ const vectorSpace = require('./vectorSpace');
  * @returns {Float32Array|Float64Array} Sum vector
  */
 function add(a, b) {
-  return vectorSpace.addVectors(a, b);
+  debug.enter('primitiveOps', 'Add', { subject: a, object: b });
+  debug.step('primitiveOps', 'DSL: @result subject Add object');
+
+  const result = vectorSpace.addVectors(a, b);
+
+  debug.step('primitiveOps', `Superposition of two ${a.length}D vectors`);
+  debug.exit('primitiveOps', 'Add', result);
+  return result;
 }
 
 /**
@@ -29,8 +47,16 @@ function add(a, b) {
  * @returns {Float32Array|Float64Array} Bound vector
  */
 function bind(a, b) {
-  return vectorSpace.hadamard(a, b);
+  debug.enter('primitiveOps', 'Bind', { subject: a, object: b });
+  debug.step('primitiveOps', 'DSL: @result subject Bind object');
+
+  const result = vectorSpace.hadamard(a, b);
+
+  debug.step('primitiveOps', `Associative binding via Hadamard product`);
+  debug.exit('primitiveOps', 'Bind', result);
+  return result;
 }
+
 
 /**
  * Element-wise negation
@@ -40,7 +66,14 @@ function bind(a, b) {
  * @returns {Float32Array|Float64Array} Negated vector
  */
 function negate(v) {
-  return vectorSpace.scale(v, -1);
+  debug.enter('primitiveOps', 'Negate', { subject: v });
+  debug.step('primitiveOps', 'DSL: @result subject Negate _');
+
+  const result = vectorSpace.scale(v, -1);
+
+  debug.step('primitiveOps', `Logical negation: v → -v`);
+  debug.exit('primitiveOps', 'Negate', result);
+  return result;
 }
 
 /**
@@ -53,9 +86,16 @@ function negate(v) {
  * @returns {number} Similarity score in [0, 1]
  */
 function distance(a, b) {
+  debug.enter('primitiveOps', 'Distance', { subject: a, object: b });
+  debug.step('primitiveOps', 'DSL: @result subject Distance object');
+
   // Cosine similarity is in [-1, 1], map to [0, 1]
   const cosSim = vectorSpace.cosineSimilarity(a, b);
-  return (cosSim + 1) / 2;
+  const result = (cosSim + 1) / 2;
+
+  debug.step('primitiveOps', `Cosine similarity: ${cosSim.toFixed(6)} → normalized: ${result.toFixed(6)}`);
+  debug.exit('primitiveOps', 'Distance', result);
+  return result;
 }
 
 /**
@@ -68,7 +108,14 @@ function distance(a, b) {
  * @returns {Float32Array|Float64Array} New state
  */
 function move(state, delta) {
-  return vectorSpace.addVectors(state, delta);
+  debug.enter('primitiveOps', 'Move', { subject: state, object: delta });
+  debug.step('primitiveOps', 'DSL: @result subject Move object');
+
+  const result = vectorSpace.addVectors(state, delta);
+
+  debug.step('primitiveOps', `State transition: state + delta → new_state`);
+  debug.exit('primitiveOps', 'Move', result);
+  return result;
 }
 
 /**
@@ -80,13 +127,22 @@ function move(state, delta) {
  * @returns {Float32Array|Float64Array} Modulated vector
  */
 function modulate(v, operand) {
+  debug.enter('primitiveOps', 'Modulate', { subject: v, object: operand });
+  debug.step('primitiveOps', 'DSL: @result subject Modulate object');
+
+  let result;
   if (typeof operand === 'number') {
     // Scalar mode: scale the vector
-    return vectorSpace.scale(v, operand);
+    debug.step('primitiveOps', `Scalar modulation: v × ${operand}`);
+    result = vectorSpace.scale(v, operand);
   } else {
     // Vector mode: Hadamard product (gating)
-    return vectorSpace.hadamard(v, operand);
+    debug.step('primitiveOps', `Vector gating: v ⊙ gate`);
+    result = vectorSpace.hadamard(v, operand);
   }
+
+  debug.exit('primitiveOps', 'Modulate', result);
+  return result;
 }
 
 /**
@@ -98,7 +154,14 @@ function modulate(v, operand) {
  * @returns {Float32Array|Float64Array} Copy of input
  */
 function identity(v) {
-  return vectorSpace.cloneVector(v);
+  debug.enter('primitiveOps', 'Identity', { subject: v });
+  debug.step('primitiveOps', 'DSL: @result subject Identity _');
+
+  const result = vectorSpace.cloneVector(v);
+
+  debug.step('primitiveOps', `Pass-through (deep copy)`);
+  debug.exit('primitiveOps', 'Identity', result);
+  return result;
 }
 
 /**
@@ -109,11 +172,19 @@ function identity(v) {
  * @returns {Float32Array|Float64Array} Unit vector
  */
 function normalise(v) {
-  return vectorSpace.normalise(v);
+  debug.enter('primitiveOps', 'Normalise', { subject: v });
+  debug.step('primitiveOps', 'DSL: @result subject Normalise _');
+
+  const result = vectorSpace.normalise(v);
+
+  debug.step('primitiveOps', `Unit vector projection: ||v|| → 1`);
+  debug.exit('primitiveOps', 'Normalise', result);
+  return result;
 }
 
 /**
  * Kernel verb registry - maps verb names to implementations
+ * Note: 'Is' is NOT a kernel verb - it's defined in BaseLogic theory as Bind+Move
  */
 const KERNEL_VERBS = {
   'Add': add,
@@ -153,11 +224,19 @@ function getKernelVerb(verbName) {
  * @throws {Error} If verb not found
  */
 function executeKernelVerb(verbName, subject, object) {
+  debug.enter('primitiveOps', 'executeKernelVerb', { verbName, subject, object });
+
   const verbFn = KERNEL_VERBS[verbName];
   if (!verbFn) {
+    debug.warn('primitiveOps', `Unknown kernel verb: ${verbName}`);
     throw new Error(`Unknown kernel verb: ${verbName}`);
   }
-  return verbFn(subject, object);
+
+  debug.step('primitiveOps', `Dispatching to ${verbName}`);
+  const result = verbFn(subject, object);
+
+  debug.exit('primitiveOps', 'executeKernelVerb', result);
+  return result;
 }
 
 module.exports = {

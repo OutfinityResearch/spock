@@ -4,72 +4,53 @@
 
 | Field | Value |
 |-------|-------|
-| **Primary role** | Provide HTTP / WebSocket endpoints for visualisation (concept projections, trajectories) and a simple interactive UI for demos and debugging. |
+| **Primary role** | HTTP server for visualization - provides web UI and REST API for executing DSL and visualizing concept space. |
 | **Public functions** | `createVizServer(engine, options)` |
-| **Depends on** | `src/viz/projectionService.js`, `src/api/sessionApi.js`, `src/api/engineFactory.js`, Node.js HTTP/WS libraries |
-| **Used by** | Front-end visualisation clients, developers during debugging and demos |
+| **Depends on** | `src/viz/projectionService.js`, `src/api/sessionApi.js`, Node.js `http` module |
+| **Used by** | External tools, demo applications |
 
 ## Traceability
 
 | Specification | IDs |
 |---------------|-----|
-| **Implements URS** | URS-006 Implementation platform, URS-007 LLM and UI interface |
-| **Implements FS** | FS-06 Public API (viz side) |
-| **Implements DS** | DS Visualisation and interaction |
+| **Implements URS** | URS-006 Implementation platform, URS-007 LLM interface |
+| **Implements FS** | FS-06 Public API |
+| **Implements DS** | DS Visualisation |
 
-## Server Options
+## Function Specifications
 
-```javascript
-{
-  port: number,            // HTTP port (default: 3000)
-  host: string,            // Bind address (default: 'localhost')
-  enableWebSocket: boolean // Enable WS for real-time updates
-}
-```
+### `createVizServer(engine, options)`
 
-## API Endpoints
+Creates an HTTP visualization server.
 
-### `GET /viz/concepts`
+**Parameters:**
+- `engine` (SpockEngine): Engine instance to serve
+- `options` (object): Server options
+  - `port` (number): Port to listen on (default: 3000)
+  - `host` (string): Host to bind to (default: 'localhost')
+  - `enableWebSocket` (boolean): Enable WebSocket for real-time updates (default: false)
 
-Returns projected coordinates for all concepts in the current session.
+**Returns:**
+- Server object with `start()`, `stop()`, `getAddress()` methods
 
-**Response:**
+## REST API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/` | HTML UI for interactive demo |
+| GET | `/viz/concepts` | Get current concepts projected to 2D/3D |
+| GET | `/viz/trajectory` | Get execution trajectory (planned) |
+| POST | `/viz/execute` | Execute DSL script and return result + visualization |
+| GET | `/viz/theories` | List available theories |
+| GET | `/viz/methods` | List available projection methods |
+| POST | `/viz/reset` | Reset session state |
+
+### POST /viz/execute
+
+**Request Body:**
 ```json
 {
-  "points": [
-    { "id": "Socrates", "x": 0.5, "y": 0.3 },
-    { "id": "Human", "x": 0.2, "y": 0.8 }
-  ],
-  "method": "pca2d"
-}
-```
-
-### `GET /viz/trajectory`
-
-Returns the reasoning trajectory for the current session.
-
-**Response:**
-```json
-{
-  "steps": [
-    { "index": 0, "from": "start", "to": "fact1", "verb": "Is" },
-    { "index": 1, "from": "fact1", "to": "query", "verb": "Implies" }
-  ],
-  "points": [
-    { "id": "start", "x": 0, "y": 0 },
-    { "id": "fact1", "x": 0.5, "y": 0.3 }
-  ]
-}
-```
-
-### `POST /viz/execute`
-
-Executes a DSL script and returns results with visualisation data.
-
-**Request:**
-```json
-{
-  "script": "@fact1 Socrates Is Human",
+  "script": "@fact Socrates Is Human",
   "method": "ask"
 }
 ```
@@ -77,49 +58,27 @@ Executes a DSL script and returns results with visualisation data.
 **Response:**
 ```json
 {
-  "result": { "success": true, "scores": { "truth": 0.95 } },
-  "points": [...],
-  "trajectory": [...]
+  "result": {
+    "success": true,
+    "dslOutput": "...",
+    "scores": { "truth": 0.85, "confidence": 0.9 }
+  },
+  "points": [
+    { "id": "Socrates", "x": 0.3, "y": -0.2 },
+    { "id": "Truth", "x": 0.9, "y": 0.1 }
+  ]
 }
 ```
 
-### `GET /viz/theories`
+## HTML UI
 
-Lists available theories.
-
-**Response:**
-```json
-{
-  "theories": ["BasicLogic", "Physics", "CustomTheory"]
-}
-```
-
-## WebSocket Events
-
-| Event | Direction | Description |
-|-------|-----------|-------------|
-| `execute` | client→server | Execute DSL script |
-| `result` | server→client | Execution result |
-| `update` | server→client | Real-time concept updates |
-
-## Simple UI
-
-The server can serve a basic HTML UI at `/`:
+Provides a built-in web interface with:
 - DSL input textarea
-- Execute button
-- 2D scatter plot of concepts
-- Trajectory overlay
-- Theory/session selector
-
-## Function Specification
-
-### `createVizServer(engine, options)`
-
-Creates and starts the visualisation server.
-
-**Parameters:**
-- `engine` (SpockEngine): Engine instance
-- `options` (ServerOptions): Configuration
-
-**Returns:**
-- Server object with `start()`, `stop()` methods
+- Method selector (learn/ask/prove/explain/plan/solve)
+- Canvas for 2D concept space visualization
+- Truth/Confidence score display
+- Grid-based visualization with color coding:
+  - Green: Concepts
+  - Red: Truth
+  - Blue: False
+  - Gray: Zero

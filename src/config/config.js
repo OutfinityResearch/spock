@@ -46,10 +46,38 @@ const DEFAULTS = Object.freeze({
  * Valid values for enumerated options
  */
 const VALID_VALUES = {
-  numericType: ['float32', 'float64'],
+  numericType: ['int8', 'int16', 'int32', 'uint8', 'uint16', 'uint32', 'float32', 'float64'],
   vectorGeneration: ['gaussian', 'bipolar'],
   logLevel: ['silent', 'summary', 'full'],
   plateauStrategy: ['fail', 'random_restart', 'procedural_fallback']
+};
+
+/**
+ * Maps numericType to TypedArray constructor
+ */
+const TYPED_ARRAY_MAP = {
+  'int8': Int8Array,
+  'int16': Int16Array,
+  'int32': Int32Array,
+  'uint8': Uint8Array,
+  'uint16': Uint16Array,
+  'uint32': Uint32Array,
+  'float32': Float32Array,
+  'float64': Float64Array
+};
+
+/**
+ * Numeric ranges for integer types (for bipolar generation)
+ */
+const NUMERIC_RANGES = {
+  'int8': { min: -128, max: 127, isSigned: true, isFloat: false },
+  'int16': { min: -32768, max: 32767, isSigned: true, isFloat: false },
+  'int32': { min: -2147483648, max: 2147483647, isSigned: true, isFloat: false },
+  'uint8': { min: 0, max: 255, isSigned: false, isFloat: false },
+  'uint16': { min: 0, max: 65535, isSigned: false, isFloat: false },
+  'uint32': { min: 0, max: 4294967295, isSigned: false, isFloat: false },
+  'float32': { min: -Infinity, max: Infinity, isSigned: true, isFloat: true },
+  'float64': { min: -Infinity, max: Infinity, isSigned: true, isFloat: true }
 };
 
 /**
@@ -196,10 +224,26 @@ function initConfig(overrides = {}) {
 
 /**
  * Gets the TypedArray constructor for the configured numeric type
- * @returns {typeof Float32Array | typeof Float64Array}
+ * @returns {typeof Int8Array | typeof Int16Array | typeof Int32Array | typeof Uint8Array | typeof Uint16Array | typeof Uint32Array | typeof Float32Array | typeof Float64Array}
  */
 function getTypedArrayConstructor() {
-  return currentConfig.numericType === 'float64' ? Float64Array : Float32Array;
+  return TYPED_ARRAY_MAP[currentConfig.numericType] || Float32Array;
+}
+
+/**
+ * Gets numeric range info for the configured type
+ * @returns {{min: number, max: number, isSigned: boolean, isFloat: boolean}}
+ */
+function getNumericRange() {
+  return NUMERIC_RANGES[currentConfig.numericType] || NUMERIC_RANGES['float32'];
+}
+
+/**
+ * Checks if current numeric type is a floating-point type
+ * @returns {boolean}
+ */
+function isFloatType() {
+  return getNumericRange().isFloat;
 }
 
 module.exports = {
@@ -208,5 +252,9 @@ module.exports = {
   resetConfig,
   initConfig,
   getTypedArrayConstructor,
-  DEFAULTS
+  getNumericRange,
+  isFloatType,
+  DEFAULTS,
+  TYPED_ARRAY_MAP,
+  NUMERIC_RANGES
 };

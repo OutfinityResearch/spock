@@ -5,9 +5,9 @@
 | Field | Value |
 |-------|-------|
 | **Primary role** | Implement branching and merging of theories in memory, independent of persistence; manage theory version metadata. |
-| **Public functions** | `branchTheory(baseTheory, newName)`, `mergeTheory(theoryA, theoryB, conflictResolver)` |
-| **Depends on** | `src/theory/theoryStore.js` (types and descriptors only) |
-| **Used by** | `src/session/sessionManager.js`, high-level tools that need versioning |
+| **Public functions** | `branchTheory(sourceName, branchName, options)`, `mergeTheory(targetName, sourceName, options)`, `useTheory(session, theoryName, options)`, `rememberToTheory(session, theoryName, options)`, `isTheoryVerb(verbName)`, `getTheoryVerb(verbName)` |
+| **Depends on** | `src/theory/theoryStore.js`, `src/kernel/vectorSpace.js`, `src/config/config.js`, `src/dsl/parser.js` |
+| **Used by** | `src/dsl/executor.js`, `src/session/sessionManager.js`, high-level tools that need versioning |
 
 ## Traceability
 
@@ -30,20 +30,22 @@
 
 ## Function Specifications
 
-### `branchTheory(baseTheory, newName)`
+### `branchTheory(sourceName, branchName, options)`
 
-Creates an in-memory branch of an existing theory.
+Creates a branch of an existing theory.
 
 **Parameters:**
-- `baseTheory` (TheoryDescriptor): Theory to branch from
-- `newName` (string): Name for the new branch
+- `sourceName` (string): Name of the source theory
+- `branchName` (string): Identifier for the new branch
+- `options` (object): Optional settings
+  - `overwrite` (boolean): Overwrite existing branch if true
 
 **Returns:**
 - New TheoryDescriptor with:
-  - Same content as base
+  - Deep copy of source AST and vectors
   - New unique `versionId`
-  - `parentVersionId` = base's `versionId`
-  - Name = `newName`
+  - `parentVersionId` = source's `versionId`
+  - Name = `{sourceName}__{branchName}`
 
 **DSL Mapping:** `BranchTheory` verb
 
@@ -52,81 +54,100 @@ Creates an in-memory branch of an existing theory.
 @branchPhysics ClassicalPhysics BranchTheory ExperimentalPhysics
 ```
 
-### `mergeTheory(theoryA, theoryB, strategy)`
+### `mergeTheory(targetName, sourceName, options)`
 
-Merges two theory versions into one using a DSL-based strategy.
+Merges two theory versions into one.
 
 **Parameters:**
-- `theoryA` (TheoryDescriptor): First (base) theory
-- `theoryB` (TheoryDescriptor): Second (overlay) theory
-- `strategy` (string): Merge strategy name (default: `'consensus'`)
+- `targetName` (string): Target (base) theory name
+- `sourceName` (string): Source (overlay) theory name
+- `options` (object): Merge options
+  - `conflictStrategy` (string): Strategy for conflicts (default: `'target'`)
 
 **Returns:**
-- Merged TheoryDescriptor
+- Merged TheoryDescriptor saved to target name
 
 **DSL Mapping:** `MergeTheory` verb
 
 ## Merge Strategies
 
-The system provides predefined, DSL-compatible merge strategies (no JavaScript callbacks):
+The system provides predefined merge strategies via `options.conflictStrategy`:
 
-### Strategy: `'consensus'` (default)
+### Strategy: `'target'` (default)
 
-For **vector values** (concepts, facts): Geometric average.
+Keep target (base) theory's value on conflicts, ignore source.
+
+### Strategy: `'source'`
+
+Replace with source (overlay) theory's value on conflicts.
+
+### Strategy: `'both'`
+
+Keep both values: rename source to `{name}_merged`.
+
+### Strategy: `'consensus'`
+
+For **vector values**: Geometric average (midpoint direction).
 
 ```javascript
-mergedVector = Normalise(Add(vecA, vecB))
+mergedVector = Normalise(Add(targetVec, sourceVec))
 ```
+
+For **statements**: Keep both under `{name}_consensus`.
 
 This places the merged concept at the "midpoint" direction between both theories.
 
-### Strategy: `'override'`
+### Strategy: `'fail'`
 
-For **macro definitions** (verbs, rules): Second theory wins.
+Throws `MergeConflictError` if any name appears in both theories.
 
 ```javascript
-if (theoryB.has(name)) {
-  merged[name] = theoryB.get(name);
-} else {
-  merged[name] = theoryA.get(name);
-}
+throw new MergeConflictError(name, targetVersion, sourceVersion);
 ```
-
-The overlay theory's definitions replace the base theory's definitions with the same name.
-
-### Strategy: `'keep_base'`
-
-Opposite of override - first theory wins on conflicts.
-
-### Strategy: `'fail_on_conflict'`
-
-Throws an error if any name appears in both theories with different values.
 
 ## Merge Algorithm
 
 ```
-mergeTheory(A, B, strategy):
+mergeTheory(targetName, sourceName, options):
+    target = loadTheory(targetName)
+    source = loadTheory(sourceName)
     merged = new Theory()
+    strategy = options.conflictStrategy || 'target'
 
-    for name in union(A.names, B.names):
-        if name only in A:
-            merged[name] = A[name]
-        else if name only in B:
-            merged[name] = B[name]
-        else:  # conflict
-            if A[name].type == 'VECTOR' and strategy == 'consensus':
-                merged[name] = Normalise(Add(A[name], B[name]))
-            else if strategy == 'override':
-                merged[name] = B[name]
-            else if strategy == 'keep_base':
-                merged[name] = A[name]
-            else:
-                throw ConflictError(name)
+    # Merge AST statements
+    for stmt in target.statements:
+        merged.statements.add(stmt)
+
+    for stmt in source.statements:
+        if stmt.declaration in merged:
+            switch strategy:
+                'target': skip
+                'source': replace
+                'both': add with _merged suffix
+                'consensus': add with _consensus suffix
+                'fail': throw MergeConflictError
+        else:
+            merged.statements.add(stmt)
+
+    # Merge vectors
+    for name, vec in target.vectors:
+        merged.vectors[name] = deepCopy(vec)
+
+    for name, vec in source.vectors:
+        if name in merged.vectors:
+            switch strategy:
+                'target': skip
+                'source': replace
+                'both': add as {name}_merged
+                'consensus': merged[name] = Normalise(Add(target, source))
+                'fail': throw MergeConflictError
+        else:
+            merged.vectors[name] = deepCopy(vec)
 
     return merged
 ```
 
-**Design Rationale:** DSL-based strategies maintain the geometric abstraction. JavaScript callbacks would break the pure DSL model and make reasoning non-reproducible.
+**Design Rationale:** String-based strategies maintain the geometric abstraction and avoid JavaScript callbacks that would break reproducibility.
 
 ## Version History
 

@@ -1,0 +1,484 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Theories as Subspaces – Spock AGISystem2</title>
+  <link rel="stylesheet" href="../reference/style.css">
+  <style>
+    .diagram-container {
+      background: #fafafa;
+      padding: 30px;
+      border-radius: 12px;
+      margin: 25px 0;
+      text-align: center;
+    }
+    .layer-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      max-width: 500px;
+      margin: 20px auto;
+    }
+    .layer {
+      padding: 20px;
+      border: 2px solid;
+      text-align: center;
+      font-weight: 500;
+    }
+    .layer.local { background: #e3f2fd; border-color: #1976d2; border-radius: 8px 8px 0 0; }
+    .layer.overlay1 { background: #e8f5e9; border-color: #4caf50; }
+    .layer.overlay2 { background: #fff3e0; border-color: #ff9800; }
+    .layer.global { background: #f5f5f5; border-color: #9e9e9e; border-radius: 0 0 8px 8px; }
+    .layer .label { font-size: 0.9em; color: #666; }
+    .merge-strategy {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 15px 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border-left: 4px solid #1976d2;
+    }
+    .merge-strategy h4 {
+      margin-top: 0;
+      color: #1976d2;
+    }
+    .code-block {
+      background: #263238;
+      color: #aed581;
+      padding: 15px;
+      border-radius: 8px;
+      font-family: 'Consolas', monospace;
+      margin: 15px 0;
+    }
+    .version-tree {
+      display: flex;
+      justify-content: center;
+      margin: 20px 0;
+    }
+    .key-concept {
+      background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
+      border-left: 4px solid #ffc107;
+      padding: 25px;
+      margin: 25px 0;
+      border-radius: 0 12px 12px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+  <div class="nav-header">
+    <h1>Theories as Subspaces</h1>
+    <small>
+      <a href="../index.html">Home</a> ·
+      <a href="index.html">Theory</a> ·
+      <a href="semantic-navigation.html">Navigation</a> ·
+      <a href="theory-spaces.html">Theories</a> ·
+      <a href="explainability.html">Explainability</a>
+    </small>
+    <small>Organizing knowledge with geometric version control</small>
+  </div>
+
+  <div class="section-intro">
+    <p>In Spock AGISystem2, a <strong>theory</strong> is a named collection of concepts, facts, and verb definitions. Theories create <strong>local contexts</strong> that can be overlaid, branched, and merged—like Git for knowledge.</p>
+  </div>
+
+  <h2>The Session-Theory Model</h2>
+
+  <p>A session is a temporary workspace that stacks theory overlays:</p>
+
+  <div class="layer-stack">
+    <div class="layer local">
+      <strong>Local Symbols</strong>
+      <div class="label">@declarations from current script</div>
+    </div>
+    <div class="layer overlay1">
+      <strong>Theory: Physics</strong>
+      <div class="label">Most recently loaded (UseTheory Physics)</div>
+    </div>
+    <div class="layer overlay2">
+      <strong>Theory: BaseLogic</strong>
+      <div class="label">Earlier loaded theory</div>
+    </div>
+    <div class="layer global">
+      <strong>Global Symbols</strong>
+      <div class="label">Truth, False, Zero (always available)</div>
+    </div>
+  </div>
+
+  <div class="key-concept">
+    <strong>Resolution Order (LIFO):</strong> When looking up a symbol, Spock searches from top to bottom. Local symbols shadow overlay symbols, which shadow global symbols. The most recent <code>UseTheory</code> takes precedence.
+  </div>
+
+  <h2>Symbol Resolution</h2>
+
+  <div class="diagram-container">
+    <svg width="600" height="300" viewBox="0 0 600 300">
+      <text x="300" y="25" text-anchor="middle" font-size="16" font-weight="bold" fill="#1976d2">Symbol Lookup: getSymbol("Gravity")</text>
+
+      <!-- Stack representation -->
+      <g transform="translate(150, 60)">
+        <!-- Layers -->
+        <rect x="0" y="0" width="200" height="40" fill="#e3f2fd" stroke="#1976d2" stroke-width="2" rx="4"/>
+        <text x="100" y="25" text-anchor="middle" font-size="12" fill="#333">Local: {Mass, Force}</text>
+
+        <rect x="0" y="50" width="200" height="40" fill="#e8f5e9" stroke="#4caf50" stroke-width="2" rx="4"/>
+        <text x="100" y="75" text-anchor="middle" font-size="12" fill="#333">Physics: {Gravity, Mass}</text>
+
+        <rect x="0" y="100" width="200" height="40" fill="#fff3e0" stroke="#ff9800" stroke-width="2" rx="4"/>
+        <text x="100" y="125" text-anchor="middle" font-size="12" fill="#333">BaseLogic: {Is, Implies}</text>
+
+        <rect x="0" y="150" width="200" height="40" fill="#f5f5f5" stroke="#9e9e9e" stroke-width="2" rx="4"/>
+        <text x="100" y="175" text-anchor="middle" font-size="12" fill="#333">Global: {Truth, False}</text>
+
+        <!-- Search arrows -->
+        <g transform="translate(220, 20)">
+          <line x1="0" y1="0" x2="40" y2="0" stroke="#e53935" stroke-width="2" marker-end="url(#searchArrow)"/>
+          <text x="60" y="5" font-size="10" fill="#e53935">Not found</text>
+        </g>
+
+        <g transform="translate(220, 70)">
+          <line x1="0" y1="0" x2="40" y2="0" stroke="#4caf50" stroke-width="3" marker-end="url(#foundArrow)"/>
+          <text x="60" y="5" font-size="11" font-weight="bold" fill="#4caf50">FOUND!</text>
+        </g>
+      </g>
+
+      <!-- Result -->
+      <g transform="translate(420, 130)">
+        <rect x="0" y="0" width="150" height="60" fill="#e8f5e9" stroke="#4caf50" stroke-width="2" rx="8"/>
+        <text x="75" y="25" text-anchor="middle" font-size="12" font-weight="bold" fill="#4caf50">Result</text>
+        <text x="75" y="45" text-anchor="middle" font-size="11" fill="#666">Physics.Gravity vector</text>
+      </g>
+
+      <defs>
+        <marker id="searchArrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#e53935"/>
+        </marker>
+        <marker id="foundArrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#4caf50"/>
+        </marker>
+      </defs>
+
+      <text x="300" y="280" text-anchor="middle" font-size="11" fill="#666">
+        Search stops at first match → Physics theory provides Gravity
+      </text>
+    </svg>
+  </div>
+
+  <h2>Theory Structure</h2>
+
+  <p>A theory on disk looks like:</p>
+
+  <div class="code-block">
+.spock/theories/Physics/
+├── theory.spockdsl     <span style="color:#90caf9"># DSL statements</span>
+├── vectors.bin         <span style="color:#90caf9"># Precomputed vectors</span>
+└── metadata.json       <span style="color:#90caf9"># Version info</span>
+  </div>
+
+  <div class="code-block">
+<span style="color:#90caf9"># theory.spockdsl</span>
+@Gravity Gravity Identity _
+@Mass Mass Identity _
+@Force Mass Bind Acceleration
+@NewtonSecond Force Is MassTimesAcceleration
+
+<span style="color:#90caf9"># Define custom verb</span>
+@ApplyForce verb begin
+    @step1 $subject Add $object
+    @result step1 Normalise _
+end
+  </div>
+
+  <h2>Theory Versioning</h2>
+
+  <div class="diagram-container">
+    <svg width="550" height="250" viewBox="0 0 550 250">
+      <text x="275" y="25" text-anchor="middle" font-size="16" font-weight="bold" fill="#1976d2">Version History Graph</text>
+
+      <!-- v1 (root) -->
+      <circle cx="100" cy="100" r="25" fill="#1976d2"/>
+      <text x="100" y="105" text-anchor="middle" font-size="11" fill="white">v1</text>
+      <text x="100" y="145" text-anchor="middle" font-size="10" fill="#666">BaseLogic</text>
+
+      <!-- v2 (branch A) -->
+      <line x1="125" y1="90" x2="200" y2="60" stroke="#333" stroke-width="2"/>
+      <circle cx="225" cy="50" r="20" fill="#4caf50"/>
+      <text x="225" y="55" text-anchor="middle" font-size="10" fill="white">v2</text>
+      <text x="225" y="85" text-anchor="middle" font-size="9" fill="#666">Experiment A</text>
+
+      <!-- v3 (branch B) -->
+      <line x1="125" y1="110" x2="200" y2="150" stroke="#333" stroke-width="2"/>
+      <circle cx="225" cy="160" r="20" fill="#ff9800"/>
+      <text x="225" y="165" text-anchor="middle" font-size="10" fill="white">v3</text>
+      <text x="225" y="195" text-anchor="middle" font-size="9" fill="#666">Experiment B</text>
+
+      <!-- v4 (merge) -->
+      <line x1="245" y1="50" x2="330" y2="100" stroke="#333" stroke-width="2"/>
+      <line x1="245" y1="160" x2="330" y2="110" stroke="#333" stroke-width="2"/>
+      <circle cx="360" cy="105" r="25" fill="#9c27b0"/>
+      <text x="360" y="110" text-anchor="middle" font-size="11" fill="white">v4</text>
+      <text x="360" y="150" text-anchor="middle" font-size="10" fill="#666">Merged</text>
+
+      <!-- v5 (continue) -->
+      <line x1="385" y1="105" x2="440" y2="105" stroke="#333" stroke-width="2"/>
+      <circle cx="470" cy="105" r="20" fill="#1976d2"/>
+      <text x="470" y="110" text-anchor="middle" font-size="10" fill="white">v5</text>
+      <text x="470" y="140" text-anchor="middle" font-size="9" fill="#666">Production</text>
+
+      <!-- Legend -->
+      <g transform="translate(50, 210)">
+        <text x="0" y="0" font-size="10" fill="#666">Operations:</text>
+        <text x="80" y="0" font-size="10" fill="#4caf50">BranchTheory</text>
+        <text x="170" y="0" font-size="10" fill="#9c27b0">MergeTheory</text>
+        <text x="260" y="0" font-size="10" fill="#1976d2">Remember</text>
+      </g>
+    </svg>
+  </div>
+
+  <h2>Theory Verbs</h2>
+
+  <table class="matrix-table">
+    <tr>
+      <th>Verb</th>
+      <th>Syntax</th>
+      <th>Effect</th>
+    </tr>
+    <tr>
+      <td><code>UseTheory</code></td>
+      <td><code>@load _ UseTheory Physics</code></td>
+      <td>Load theory as overlay, execute its statements</td>
+    </tr>
+    <tr>
+      <td><code>Remember</code></td>
+      <td><code>@save session Remember MyTheory</code></td>
+      <td>Persist session symbols to theory</td>
+    </tr>
+    <tr>
+      <td><code>BranchTheory</code></td>
+      <td><code>@branch Physics BranchTheory experiment</code></td>
+      <td>Create Physics__experiment from Physics</td>
+    </tr>
+    <tr>
+      <td><code>MergeTheory</code></td>
+      <td><code>@merge target MergeTheory source</code></td>
+      <td>Combine source into target</td>
+    </tr>
+  </table>
+
+  <h2>Merge Strategies</h2>
+
+  <p>When two theories have the same symbol name, Spock offers geometric merge strategies:</p>
+
+  <div class="merge-strategy">
+    <h4>Strategy: <code>target</code> (Default)</h4>
+    <p>Keep the target (base) theory's version. Source is ignored for conflicts.</p>
+    <div class="code-block">
+mergeTheory("Physics", "Experiment", { conflictStrategy: 'target' });
+<span style="color:#90caf9">// Physics.Gravity stays as-is, Experiment.Gravity ignored</span>
+    </div>
+  </div>
+
+  <div class="merge-strategy">
+    <h4>Strategy: <code>source</code></h4>
+    <p>Replace with the source (overlay) theory's version.</p>
+    <div class="code-block">
+mergeTheory("Physics", "Experiment", { conflictStrategy: 'source' });
+<span style="color:#90caf9">// Physics.Gravity replaced by Experiment.Gravity</span>
+    </div>
+  </div>
+
+  <div class="merge-strategy">
+    <h4>Strategy: <code>both</code></h4>
+    <p>Keep both versions. Source is renamed with <code>_merged</code> suffix.</p>
+    <div class="code-block">
+mergeTheory("Physics", "Experiment", { conflictStrategy: 'both' });
+<span style="color:#90caf9">// Physics has both Gravity and Gravity_merged</span>
+    </div>
+  </div>
+
+  <div class="merge-strategy">
+    <h4>Strategy: <code>consensus</code> ⭐</h4>
+    <p><strong>Geometric merge:</strong> The resulting vector is the normalized sum—the "midpoint direction" between both theories.</p>
+    <div class="diagram-container" style="margin: 15px 0; padding: 20px;">
+      <svg width="400" height="180" viewBox="0 0 400 180">
+        <g transform="translate(200, 100)">
+          <!-- Target vector -->
+          <line x1="0" y1="0" x2="80" y2="-60" stroke="#1976d2" stroke-width="3"/>
+          <circle cx="80" cy="-60" r="6" fill="#1976d2"/>
+          <text x="95" y="-55" font-size="11" fill="#1976d2">Target</text>
+
+          <!-- Source vector -->
+          <line x1="0" y1="0" x2="90" y2="30" stroke="#ff9800" stroke-width="3"/>
+          <circle cx="90" cy="30" r="6" fill="#ff9800"/>
+          <text x="105" y="35" font-size="11" fill="#ff9800">Source</text>
+
+          <!-- Sum (dashed) -->
+          <line x1="0" y1="0" x2="170" y2="-30" stroke="#9e9e9e" stroke-width="1" stroke-dasharray="5,5"/>
+
+          <!-- Normalized consensus -->
+          <line x1="0" y1="0" x2="95" y2="-17" stroke="#4caf50" stroke-width="4"/>
+          <circle cx="95" cy="-17" r="7" fill="#4caf50"/>
+          <text x="110" y="-12" font-size="11" font-weight="bold" fill="#4caf50">Consensus</text>
+
+          <!-- Formula -->
+          <text x="0" y="70" text-anchor="middle" font-size="10" fill="#666">consensus = normalise(target + source)</text>
+        </g>
+      </svg>
+    </div>
+    <div class="code-block">
+mergeTheory("Physics", "Experiment", { conflictStrategy: 'consensus' });
+<span style="color:#90caf9">// Gravity = normalise(Physics.Gravity + Experiment.Gravity)</span>
+    </div>
+  </div>
+
+  <div class="merge-strategy">
+    <h4>Strategy: <code>fail</code></h4>
+    <p>Throw an error on any conflict. Use when conflicts indicate a problem.</p>
+    <div class="code-block">
+mergeTheory("Physics", "Experiment", { conflictStrategy: 'fail' });
+<span style="color:#90caf9">// Throws MergeConflictError if any symbol exists in both</span>
+    </div>
+  </div>
+
+  <h2>UseTheory with Execution</h2>
+
+  <p>When you load a theory, its statements can be <strong>executed</strong> to populate the session:</p>
+
+  <div class="diagram-container">
+    <svg width="600" height="200" viewBox="0 0 600 200">
+      <text x="300" y="25" text-anchor="middle" font-size="14" font-weight="bold" fill="#1976d2">UseTheory Execution Flow</text>
+
+      <!-- Theory file -->
+      <g transform="translate(80, 100)">
+        <rect x="-50" y="-35" width="100" height="70" fill="#fff3e0" stroke="#ff9800" stroke-width="2" rx="5"/>
+        <text x="0" y="-15" text-anchor="middle" font-size="10" fill="#333">Physics.spockdsl</text>
+        <text x="0" y="5" text-anchor="middle" font-size="9" fill="#666">@Gravity ...</text>
+        <text x="0" y="20" text-anchor="middle" font-size="9" fill="#666">@Mass ...</text>
+      </g>
+
+      <!-- Arrow -->
+      <line x1="140" y1="100" x2="200" y2="100" stroke="#333" stroke-width="2" marker-end="url(#flowArrow)"/>
+      <text x="170" y="85" text-anchor="middle" font-size="9" fill="#666">parse</text>
+
+      <!-- AST -->
+      <g transform="translate(260, 100)">
+        <rect x="-50" y="-35" width="100" height="70" fill="#e3f2fd" stroke="#1976d2" stroke-width="2" rx="5"/>
+        <text x="0" y="-15" text-anchor="middle" font-size="10" fill="#333">AST</text>
+        <text x="0" y="5" text-anchor="middle" font-size="9" fill="#666">[statements]</text>
+        <text x="0" y="20" text-anchor="middle" font-size="9" fill="#666">[macros]</text>
+      </g>
+
+      <!-- Arrow -->
+      <line x1="320" y1="100" x2="380" y2="100" stroke="#333" stroke-width="2" marker-end="url(#flowArrow)"/>
+      <text x="350" y="85" text-anchor="middle" font-size="9" fill="#666">execute</text>
+
+      <!-- Session symbols -->
+      <g transform="translate(450, 100)">
+        <rect x="-60" y="-35" width="120" height="70" fill="#e8f5e9" stroke="#4caf50" stroke-width="2" rx="5"/>
+        <text x="0" y="-15" text-anchor="middle" font-size="10" fill="#333">Session.localSymbols</text>
+        <text x="0" y="5" text-anchor="middle" font-size="9" fill="#666">Gravity → vector</text>
+        <text x="0" y="20" text-anchor="middle" font-size="9" fill="#666">Mass → vector</text>
+      </g>
+
+      <defs>
+        <marker id="flowArrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#333"/>
+        </marker>
+      </defs>
+
+      <text x="300" y="180" text-anchor="middle" font-size="10" fill="#666">
+        UseTheory parses the theory file and executes statements to create vectors
+      </text>
+    </svg>
+  </div>
+
+  <h2>Remember: Persisting Changes</h2>
+
+  <p>The <code>Remember</code> verb saves session symbols back to a theory:</p>
+
+  <div class="code-block">
+<span style="color:#90caf9"># Session work</span>
+@discovery Force Bind NewParticle
+@law discovery Is UnifiedTheory
+
+<span style="color:#90caf9"># Persist to theory</span>
+@save session Remember MyPhysics
+
+<span style="color:#90caf9"># Now MyPhysics contains discovery and law!</span>
+  </div>
+
+  <p><strong>What gets saved:</strong></p>
+  <ul>
+    <li>All local symbols (VECTOR, NUMERIC, FACT types)</li>
+    <li>Original relations are preserved when possible</li>
+    <li>Internal symbols ($temp, @step) are skipped</li>
+  </ul>
+
+  <h2>Child Sessions</h2>
+
+  <p>Sessions can spawn child sessions with inherited overlays:</p>
+
+  <div class="diagram-container">
+    <svg width="400" height="200" viewBox="0 0 400 200">
+      <text x="200" y="25" text-anchor="middle" font-size="14" font-weight="bold" fill="#1976d2">Session Hierarchy</text>
+
+      <!-- Parent -->
+      <g transform="translate(200, 80)">
+        <rect x="-80" y="-25" width="160" height="50" fill="#e3f2fd" stroke="#1976d2" stroke-width="2" rx="5"/>
+        <text x="0" y="0" text-anchor="middle" font-size="11" font-weight="bold" fill="#333">Parent Session</text>
+        <text x="0" y="15" text-anchor="middle" font-size="9" fill="#666">overlays: [Physics, Logic]</text>
+      </g>
+
+      <!-- Arrows -->
+      <line x1="140" y1="115" x2="100" y2="145" stroke="#333" stroke-width="2" marker-end="url(#childArrow)"/>
+      <line x1="260" y1="115" x2="300" y2="145" stroke="#333" stroke-width="2" marker-end="url(#childArrow)"/>
+
+      <!-- Children -->
+      <g transform="translate(80, 170)">
+        <rect x="-60" y="-15" width="120" height="30" fill="#e8f5e9" stroke="#4caf50" stroke-width="2" rx="4"/>
+        <text x="0" y="5" text-anchor="middle" font-size="10" fill="#333">Child A (scoped)</text>
+      </g>
+
+      <g transform="translate(320, 170)">
+        <rect x="-60" y="-15" width="120" height="30" fill="#fff3e0" stroke="#ff9800" stroke-width="2" rx="4"/>
+        <text x="0" y="5" text-anchor="middle" font-size="10" fill="#333">Child B (scoped)</text>
+      </g>
+
+      <defs>
+        <marker id="childArrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#333"/>
+        </marker>
+      </defs>
+    </svg>
+  </div>
+
+  <p>Child sessions:</p>
+  <ul>
+    <li>Share parent's overlays and globals (read-only)</li>
+    <li>Have their own local symbol table</li>
+    <li>Changes don't affect parent</li>
+    <li>Useful for hypothetical reasoning ("what if...")</li>
+  </ul>
+
+  <h2>Why Theory Spaces Matter</h2>
+
+  <div class="key-concept">
+    <strong>Theories enable:</strong>
+    <ul>
+      <li><strong>Modularity:</strong> Package knowledge into reusable units</li>
+      <li><strong>Experimentation:</strong> Branch, try ideas, merge if they work</li>
+      <li><strong>Collaboration:</strong> Multiple agents can work on different branches</li>
+      <li><strong>Versioning:</strong> Track history, rollback if needed</li>
+      <li><strong>Isolation:</strong> Conflicting worldviews can coexist</li>
+    </ul>
+  </div>
+
+  <div class="footer-nav">
+    <p>
+      <a href="semantic-navigation.html">← Semantic Gradient Descent</a> ·
+      <strong>Next:</strong> <a href="explainability.html">Native Explainability →</a>
+    </p>
+  </div>
+  </div>
+</body>
+</html>

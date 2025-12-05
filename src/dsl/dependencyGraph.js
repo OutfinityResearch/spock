@@ -25,8 +25,11 @@ function extractReferences(statement) {
   const refs = [];
 
   // Subject might reference another declaration
-  if (statement.subject.startsWith('@')) {
-    refs.push(statement.subject);
+  if (statement.subject.startsWith('@') || statement.subject.startsWith('$')) {
+    const name = statement.subject.startsWith('$')
+      ? `@${statement.subject.slice(1)}`
+      : statement.subject;
+    refs.push(name);
   }
 
   // Verb - if it's a user-defined verb macro, it's a reference
@@ -34,8 +37,11 @@ function extractReferences(statement) {
   // (verbs are resolved at runtime, not compile time)
 
   // Object might reference another declaration
-  if (statement.object.startsWith('@')) {
-    refs.push(statement.object);
+  if (statement.object.startsWith('@') || statement.object.startsWith('$')) {
+    const name = statement.object.startsWith('$')
+      ? `@${statement.object.slice(1)}`
+      : statement.object;
+    refs.push(name);
   }
 
   return refs;
@@ -70,7 +76,10 @@ function buildGraph(macro) {
       // in the topological sort sense - they're resolved at runtime
     }
 
-    edges.set(stmt.declaration, deps);
+    // Deduplicate dependencies to avoid inflating in-degree counts
+    const uniqueDeps = Array.from(new Set(deps));
+
+    edges.set(stmt.declaration, uniqueDeps);
   }
 
   return { nodes, edges };

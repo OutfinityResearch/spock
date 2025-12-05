@@ -1,0 +1,18 @@
+@GravityTheory theory begin
+    # Multiply mass by gravitational acceleration
+    @ComputeForce verb begin
+        @result $subject MulNumeric $object
+    end
+
+    # Attach Newton unit to the computed force
+    @Weight verb begin
+        @force $subject MulNumeric $object
+        @result @force AttachUnit N
+    end
+
+    # Potential energy (mass * gravity*height) with Joule unit
+    @PotentialEnergy verb begin
+        @energy $subject MulNumeric $object
+        @result @energy AttachUnit J
+    end
+end

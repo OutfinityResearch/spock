@@ -5,7 +5,8 @@
 
 'use strict';
 
-const { getConfig, getTypedArrayConstructor } = require('../config/config');
+const { getConfig, getTypedArrayConstructor, getNumericRange, isFloatType } = require('../config/config');
+const debug = require('../logging/debugLogger').kernel;
 
 /**
  * Seeded random number generator (Mulberry32)
@@ -56,36 +57,86 @@ function setRandomSeed(seed) {
  * @returns {Float32Array|Float64Array} Zero vector
  */
 function createVector(dim) {
+  debug.enter('vectorSpace', 'createVector', { dim });
+
   const config = getConfig();
   const d = dim || config.dimensions;
+  debug.step('vectorSpace', `Using dimension: ${d} (from ${dim ? 'param' : 'config'})`);
+
   const TypedArray = getTypedArrayConstructor();
-  return new TypedArray(d);
+  debug.step('vectorSpace', `TypedArray: ${TypedArray.name}`);
+
+  const result = new TypedArray(d);
+  debug.exit('vectorSpace', 'createVector', result);
+  return result;
 }
 
 /**
  * Creates a new hypervector with random components
  * @param {number} [dim] - Dimensionality (defaults to config)
- * @returns {Float32Array|Float64Array} Random vector
+ * @returns {TypedArray} Random vector
  */
 function createRandomVector(dim) {
+  debug.enter('vectorSpace', 'createRandomVector', { dim });
+
   const config = getConfig();
   const d = dim || config.dimensions;
   const TypedArray = getTypedArrayConstructor();
   const vec = new TypedArray(d);
+  const range = getNumericRange();
+  const isFloat = isFloatType();
+
+  debug.step('vectorSpace', `Generation mode: ${config.vectorGeneration}, isFloat: ${isFloat}, dim: ${d}`);
 
   if (config.vectorGeneration === 'bipolar') {
-    // Bipolar: +1 or -1
-    for (let i = 0; i < d; i++) {
-      vec[i] = randomFn() < 0.5 ? -1 : 1;
+    debug.step('vectorSpace', 'Using bipolar generation (+1/-1 or 0/1)');
+    if (isFloat) {
+      // Float bipolar: +1 or -1
+      for (let i = 0; i < d; i++) {
+        vec[i] = randomFn() < 0.5 ? -1 : 1;
+      }
+    } else if (range.isSigned) {
+      // Signed integer bipolar: use -1 and +1
+      for (let i = 0; i < d; i++) {
+        vec[i] = randomFn() < 0.5 ? -1 : 1;
+      }
+    } else {
+      // Unsigned integer bipolar: use 0 and 1
+      for (let i = 0; i < d; i++) {
+        vec[i] = randomFn() < 0.5 ? 0 : 1;
+      }
     }
   } else {
-    // Gaussian: N(0, 1/sqrt(d)) for expected unit norm
-    const scale = 1 / Math.sqrt(d);
-    for (let i = 0; i < d; i++) {
-      vec[i] = gaussianRandom(randomFn) * scale;
+    // Gaussian generation
+    debug.step('vectorSpace', 'Using Gaussian generation');
+    if (isFloat) {
+      // Float Gaussian: N(0, 1/sqrt(d)) for expected unit norm
+      const scale = 1 / Math.sqrt(d);
+      debug.step('vectorSpace', `Gaussian scale: ${scale.toFixed(6)}`);
+      for (let i = 0; i < d; i++) {
+        vec[i] = gaussianRandom(randomFn) * scale;
+      }
+    } else if (range.isSigned) {
+      // Signed integer: scale Gaussian to use a portion of the range
+      // Use range/4 as std dev to avoid overflow while allowing spread
+      const maxAbs = Math.min(Math.abs(range.min), Math.abs(range.max));
+      const scale = maxAbs / (4 * Math.sqrt(d));
+      for (let i = 0; i < d; i++) {
+        const val = Math.round(gaussianRandom(randomFn) * scale);
+        vec[i] = Math.max(range.min, Math.min(range.max, val));
+      }
+    } else {
+      // Unsigned integer: use half of range as center, scale from there
+      const center = Math.floor(range.max / 2);
+      const scale = center / (4 * Math.sqrt(d));
+      for (let i = 0; i < d; i++) {
+        const val = Math.round(center + gaussianRandom(randomFn) * scale);
+        vec[i] = Math.max(0, Math.min(range.max, val));
+      }
     }
   }
 
+  debug.exit('vectorSpace', 'createRandomVector', vec);
   return vec;
 }
 
@@ -109,7 +160,10 @@ function cloneVector(vec) {
  * @throws {Error} If dimensions don't match
  */
 function dot(a, b) {
+  debug.enter('vectorSpace', 'dot', { a, b });
+
   if (a.length !== b.length) {
+    debug.warn('vectorSpace', `Dimension mismatch: ${a.length} vs ${b.length}`);
     throw new Error(`Dimension mismatch: ${a.length} vs ${b.length}`);
   }
 
@@ -117,6 +171,9 @@ function dot(a, b) {
   for (let i = 0; i < a.length; i++) {
     sum += a[i] * b[i];
   }
+
+  debug.step('vectorSpace', `dot product computed over ${a.length} dimensions`);
+  debug.exit('vectorSpace', 'dot', sum);
   return sum;
 }
 
@@ -126,11 +183,17 @@ function dot(a, b) {
  * @returns {number} L2 norm
  */
 function norm(vec) {
+  debug.enter('vectorSpace', 'norm', { vec });
+
   let sum = 0;
   for (let i = 0; i < vec.length; i++) {
     sum += vec[i] * vec[i];
   }
-  return Math.sqrt(sum);
+  const result = Math.sqrt(sum);
+
+  debug.step('vectorSpace', `norm of ${vec.length}D vector`);
+  debug.exit('vectorSpace', 'norm', result);
+  return result;
 }
 
 /**
@@ -139,12 +202,17 @@ function norm(vec) {
  * @returns {Float32Array|Float64Array} Unit vector (new array)
  */
 function normalise(vec) {
+  debug.enter('vectorSpace', 'normalise', { vec });
+
   const TypedArray = vec.constructor;
   const result = new TypedArray(vec.length);
   const n = norm(vec);
 
+  debug.step('vectorSpace', `input norm: ${n.toFixed(6)}`);
+
   if (n === 0) {
-    // Return zero vector if input is zero
+    debug.step('vectorSpace', 'zero vector detected, returning zero');
+    debug.exit('vectorSpace', 'normalise', result);
     return result;
   }
 
@@ -152,6 +220,9 @@ function normalise(vec) {
   for (let i = 0; i < vec.length; i++) {
     result[i] = vec[i] * invNorm;
   }
+
+  debug.step('vectorSpace', `output norm: ${norm(result).toFixed(6)} (should be 1.0)`);
+  debug.exit('vectorSpace', 'normalise', result);
   return result;
 }
 
@@ -162,15 +233,23 @@ function normalise(vec) {
  * @returns {number} Cosine similarity in [-1, 1]
  */
 function cosineSimilarity(a, b) {
+  debug.enter('vectorSpace', 'cosineSimilarity', { a, b });
+
   const dotProduct = dot(a, b);
   const normA = norm(a);
   const normB = norm(b);
 
+  debug.step('vectorSpace', `dot=${dotProduct.toFixed(6)}, normA=${normA.toFixed(6)}, normB=${normB.toFixed(6)}`);
+
   if (normA === 0 || normB === 0) {
+    debug.step('vectorSpace', 'zero norm detected, returning 0');
+    debug.exit('vectorSpace', 'cosineSimilarity', 0);
     return 0;
   }
 
-  return dotProduct / (normA * normB);
+  const result = dotProduct / (normA * normB);
+  debug.exit('vectorSpace', 'cosineSimilarity', result);
+  return result;
 }
 
 /**
@@ -180,11 +259,16 @@ function cosineSimilarity(a, b) {
  * @returns {Float32Array|Float64Array} Scaled vector
  */
 function scale(vec, scalar) {
+  debug.enter('vectorSpace', 'scale', { vec, scalar });
+
   const TypedArray = vec.constructor;
   const result = new TypedArray(vec.length);
   for (let i = 0; i < vec.length; i++) {
     result[i] = vec[i] * scalar;
   }
+
+  debug.step('vectorSpace', `scaled ${vec.length}D vector by ${scalar}`);
+  debug.exit('vectorSpace', 'scale', result);
   return result;
 }
 
@@ -196,7 +280,10 @@ function scale(vec, scalar) {
  * @throws {Error} If dimensions don't match
  */
 function addVectors(a, b) {
+  debug.enter('vectorSpace', 'addVectors', { a, b });
+
   if (a.length !== b.length) {
+    debug.warn('vectorSpace', `Dimension mismatch: ${a.length} vs ${b.length}`);
     throw new Error(`Dimension mismatch: ${a.length} vs ${b.length}`);
   }
 
@@ -205,6 +292,9 @@ function addVectors(a, b) {
   for (let i = 0; i < a.length; i++) {
     result[i] = a[i] + b[i];
   }
+
+  debug.step('vectorSpace', `added two ${a.length}D vectors`);
+  debug.exit('vectorSpace', 'addVectors', result);
   return result;
 }
 
@@ -216,7 +306,10 @@ function addVectors(a, b) {
  * @throws {Error} If dimensions don't match
  */
 function hadamard(a, b) {
+  debug.enter('vectorSpace', 'hadamard', { a, b });
+
   if (a.length !== b.length) {
+    debug.warn('vectorSpace', `Dimension mismatch: ${a.length} vs ${b.length}`);
     throw new Error(`Dimension mismatch: ${a.length} vs ${b.length}`);
   }
 
@@ -225,6 +318,9 @@ function hadamard(a, b) {
   for (let i = 0; i < a.length; i++) {
     result[i] = a[i] * b[i];
   }
+
+  debug.step('vectorSpace', `Hadamard product of two ${a.length}D vectors`);
+  debug.exit('vectorSpace', 'hadamard', result);
   return result;
 }
 

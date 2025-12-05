@@ -1,0 +1,15 @@
+@MeasurementTheory theory begin
+    # Attach a numeric reading to a sensor concept
+    @HasReading verb begin
+        @binding $subject Bind $object
+        @result $binding Move $subject
+    end
+end
+
+@VersioningHelpers theory begin
+    # Compare two theories or readings by similarity
+    @Prefer verb begin
+        @score $subject Distance $object
+        @result Truth Modulate $score
+    end
+end

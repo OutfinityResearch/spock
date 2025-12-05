@@ -10,8 +10,8 @@ const path = require('path');
 const { initConfig, getConfig, setConfig } = require('../config/config');
 const vectorSpace = require('../kernel/vectorSpace');
 const primitiveOps = require('../kernel/primitiveOps');
-const { createSession, createTypedValue } = require('../session/sessionManager');
-const { loadTheory, listTheories, ensureTheoriesDirectory } = require('../theory/theoryStore');
+const { createSession: createSessionFn, createTypedValue } = require('../session/sessionManager');
+const { loadTheory, listTheories, ensureTheoriesDirectory, seedBuiltinTheories } = require('../theory/theoryStore');
 
 /**
  * Path to persisted Truth vector
@@ -100,10 +100,9 @@ function createSpockEngine(options = {}) {
   initConfig(options);
   const config = getConfig();
 
-  // Set random seed if provided
-  if (options.randomSeed !== undefined) {
-    vectorSpace.setRandomSeed(options.randomSeed);
-  }
+  // Always apply randomSeed from config (either from options or config default)
+  // This ensures reproducibility when seed is set anywhere
+  vectorSpace.setRandomSeed(config.randomSeed);
 
   // Ensure working folder exists
   if (!fs.existsSync(config.workingFolder)) {
@@ -113,12 +112,18 @@ function createSpockEngine(options = {}) {
   // Ensure theories directory exists
   ensureTheoriesDirectory();
 
+  // Seed bundled base theories (e.g., BaseLogic) into the working theories path
+  const builtinTheoriesPath = path.resolve(__dirname, '../../theories');
+  const seededBuiltinTheories = seedBuiltinTheories(builtinTheoriesPath);
+
   // Create canonical constants
   const globalSymbols = createCanonicalConstants(config.dimensions, config.workingFolder);
 
   // Preload default theories
   const loadedTheories = new Map();
-  for (const theoryName of options.defaultTheories || []) {
+  const defaultTheoryNames = [...seededBuiltinTheories, ...(options.defaultTheories || [])];
+
+  for (const theoryName of defaultTheoryNames) {
     try {
       const theory = loadTheory(theoryName);
       loadedTheories.set(theoryName, theory);
@@ -137,7 +142,8 @@ function createSpockEngine(options = {}) {
      * @returns {Object} SpockSession
      */
     createSession(initialTheories = []) {
-      return createSession(initialTheories, globalSymbols);
+      const mergedTheories = [...defaultTheoryNames, ...initialTheories];
+      return createSessionFn(mergedTheories, globalSymbols);
     },
 
     /**

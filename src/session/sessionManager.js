@@ -43,6 +43,7 @@ function createSession(initialTheories = [], globalSymbols = null) {
     localSymbols: new Map(),
     overlays: [],
     globalSymbols: globalSymbols || new Map(),
+    globals: globalSymbols || new Map(), // alias expected by tests
     createdAt: new Date(),
     config: getConfig()
   };
@@ -72,6 +73,7 @@ function createSession(initialTheories = [], globalSymbols = null) {
 function getSymbol(session, name) {
   // Normalize name (add @ if missing for declarations)
   const normalizedName = name.startsWith('@') ? name : name;
+  const withAt = normalizedName.startsWith('@') ? normalizedName : `@${normalizedName}`;
 
   // 1. Check local symbols first
   if (session.localSymbols.has(normalizedName)) {
@@ -83,22 +85,38 @@ function getSymbol(session, name) {
   if (session.localSymbols.has(withoutAt)) {
     return session.localSymbols.get(withoutAt);
   }
+  if (!normalizedName.startsWith('@') && session.localSymbols.has(withAt)) {
+    return session.localSymbols.get(withAt);
+  }
 
   // 2. Check overlays in reverse order (LIFO - most recent first)
   for (let i = session.overlays.length - 1; i >= 0; i--) {
-    const theory = session.overlays[i];
+    const theory = session.overlays[i] || {};
+
+    // Direct symbol map on overlay
+    if (theory.symbols && theory.symbols.has(normalizedName)) {
+      return theory.symbols.get(normalizedName);
+    }
+    if (theory.symbols && theory.symbols.has(withoutAt)) {
+      return theory.symbols.get(withoutAt);
+    }
+    if (!normalizedName.startsWith('@') && theory.symbols && theory.symbols.has(withAt)) {
+      return theory.symbols.get(withAt);
+    }
 
     // Check in theory's AST macros
-    for (const macro of theory.ast.macros || []) {
-      if (macro.name === normalizedName || macro.name === `@${withoutAt}`) {
-        return createTypedValue('MACRO', macro);
-      }
+    if (theory.ast && Array.isArray(theory.ast.macros)) {
+      for (const macro of theory.ast.macros || []) {
+        if (macro.name === normalizedName || macro.name === `@${withoutAt}`) {
+          return createTypedValue('MACRO', macro);
+        }
 
-      // Check for verbs defined in the theory
-      if (macro.declarationType === 'theory') {
-        for (const nested of macro.nestedMacros || []) {
-          if (nested.name === normalizedName || nested.name === `@${withoutAt}`) {
-            return createTypedValue('MACRO', nested);
+        // Check for verbs defined in the theory
+        if (macro.declarationType === 'theory') {
+          for (const nested of macro.nestedMacros || []) {
+            if (nested.name === normalizedName || nested.name === `@${withoutAt}`) {
+              return createTypedValue('MACRO', nested);
+            }
           }
         }
       }
@@ -108,6 +126,9 @@ function getSymbol(session, name) {
     if (theory.vectors && theory.vectors.has(normalizedName)) {
       return theory.vectors.get(normalizedName);
     }
+    if (!normalizedName.startsWith('@') && theory.vectors && theory.vectors.has(withAt)) {
+      return theory.vectors.get(withAt);
+    }
   }
 
   // 3. Check global symbols
@@ -116,6 +137,9 @@ function getSymbol(session, name) {
   }
   if (session.globalSymbols.has(withoutAt)) {
     return session.globalSymbols.get(withoutAt);
+  }
+  if (!normalizedName.startsWith('@') && session.globalSymbols.has(withAt)) {
+    return session.globalSymbols.get(withAt);
   }
 
   return undefined;
@@ -128,6 +152,9 @@ function getSymbol(session, name) {
  * @param {Object} value - Typed value to bind
  */
 function setSymbol(session, name, value) {
+  if (value && typeof value === 'object' && !value.symbolName) {
+    value.symbolName = name;
+  }
   session.localSymbols.set(name, value);
 }
 
@@ -183,12 +210,14 @@ function getAllSymbolNames(session) {
 
   // Overlays
   for (const theory of session.overlays) {
-    for (const macro of theory.ast.macros || []) {
-      names.add(macro.name);
-    }
-    if (theory.vectors) {
-      for (const name of theory.vectors.keys()) {
+    if (theory.symbols) {
+      for (const name of theory.symbols.keys()) {
         names.add(name);
+      }
+    }
+    if (theory.ast && theory.ast.macros) {
+      for (const macro of theory.ast.macros || []) {
+        names.add(macro.name);
       }
     }
   }
@@ -198,7 +227,7 @@ function getAllSymbolNames(session) {
     names.add(name);
   }
 
-  return names;
+  return Array.from(names);
 }
 
 /**
@@ -215,15 +244,24 @@ function clearLocalSymbols(session) {
  * @returns {Object} Child session
  */
 function createChildSession(parentSession) {
-  return {
+  const child = {
     id: generateSessionId(),
     localSymbols: new Map(),
     overlays: [...parentSession.overlays],  // Share overlays
     globalSymbols: parentSession.globalSymbols,  // Share globals
+    globals: parentSession.globalSymbols,
     parent: parentSession,
     createdAt: new Date(),
     config: parentSession.config
   };
+
+  // Make parent locals visible via an overlay snapshot
+  child.overlays.push({
+    name: `parent:${parentSession.id}`,
+    symbols: parentSession.localSymbols
+  });
+
+  return child;
 }
 
 /**
@@ -234,7 +272,7 @@ function createChildSession(parentSession) {
 function getSessionStats(session) {
   return {
     id: session.id,
-    localSymbolCount: session.localSymbols.size,
+    symbolCount: session.localSymbols.size,
     overlayCount: session.overlays.length,
     globalSymbolCount: session.globalSymbols.size,
     createdAt: session.createdAt

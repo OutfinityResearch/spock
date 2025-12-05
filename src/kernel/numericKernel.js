@@ -211,55 +211,160 @@ function divNumeric(a, b) {
 }
 
 /**
- * Attaches a numeric value to a concept
+ * Attaches a numeric value to a concept vector
  * DSL Mapping: AttachToConcept verb
  *
- * @param {Object} numeric - NumericValue
- * @param {Object} concept - Concept (VECTOR type)
+ * Creates a MEASURED type that links a numeric value with its concept.
+ * The concept reference allows tracing back to the semantic meaning.
+ *
+ * Example DSL: @mass 10kg AttachToConcept Ball
+ * Result: { type: 'MEASURED', value: 10, unit: 'kg', concept: Ball, conceptName: 'Ball' }
+ *
+ * @param {Object} numeric - NumericValue (type: 'NUMERIC')
+ * @param {Object} concept - Concept (type: 'VECTOR' or 'MEASURED' with vector)
+ * @param {Object} [context] - Execution context (for name resolution)
  * @returns {Object} MeasuredValue with concept link
  */
-function attachToConcept(numeric, concept) {
+function attachToConcept(numeric, concept, context = null) {
   if (numeric.type !== 'NUMERIC') {
-    throw new Error('AttachToConcept requires NUMERIC first operand');
+    throw new Error(`AttachToConcept requires NUMERIC first operand, got ${numeric.type}`);
   }
+
+  // Accept VECTOR directly or extract from MEASURED
+  let conceptVector = null;
+  let conceptName = null;
+
+  if (concept.type === 'VECTOR') {
+    conceptVector = concept.value;
+    conceptName = concept.name || null;
+  } else if (concept.type === 'MEASURED' && concept.conceptVector) {
+    conceptVector = concept.conceptVector;
+    conceptName = concept.conceptName || null;
+  } else if (typeof concept === 'string') {
+    // Concept passed as string name - store reference
+    conceptName = concept;
+    conceptVector = null;  // Will be resolved at query time
+  } else {
+    throw new Error(`AttachToConcept requires VECTOR or concept name as second operand, got ${concept.type || typeof concept}`);
+  }
+
   return {
     type: 'MEASURED',
     value: numeric.value,
     unit: numeric.unit,
-    concept: concept
+    conceptVector: conceptVector,
+    conceptName: conceptName,
+    // Preserve numeric origin for tracing
+    numericSource: {
+      value: numeric.value,
+      unit: numeric.unit
+    }
   };
 }
 
 /**
- * Projects/extracts numeric value from a concept
+ * Projects/extracts numeric value from a measured concept
  * DSL Mapping: ProjectNumeric verb
  *
- * @param {Object} concept - Concept with measured values
- * @param {string} property - Property name to extract
+ * Extracts the numeric portion from a MEASURED value, or looks up
+ * a numeric property associated with a concept.
+ *
+ * Example DSL: @mass Ball ProjectNumeric mass
+ * - If Ball is MEASURED: returns the numeric value
+ * - If Ball is VECTOR: looks for 'mass' property in context
+ *
+ * @param {Object} source - Source (MEASURED, VECTOR, or context object)
+ * @param {Object|string} property - Property name or extraction hint
+ * @param {Object} [context] - Execution context for property lookup
  * @returns {Object} NumericValue
  */
-function projectNumeric(concept, property) {
-  // This is a placeholder - actual implementation depends on
-  // how concepts store associated numeric properties
-  return {
-    type: 'NUMERIC',
-    value: 0,
-    unit: null
-  };
+function projectNumeric(source, property, context = null) {
+  // Case 1: Source is MEASURED - extract numeric directly
+  if (source.type === 'MEASURED') {
+    return {
+      type: 'NUMERIC',
+      value: source.value,
+      unit: source.unit,
+      projectedFrom: source.conceptName || 'measured'
+    };
+  }
+
+  // Case 2: Source is NUMERIC - pass through
+  if (source.type === 'NUMERIC') {
+    return source;
+  }
+
+  // Case 3: Source is VECTOR - look up property in associated data
+  if (source.type === 'VECTOR') {
+    // Check if vector has associated numeric properties
+    if (source.properties && typeof property === 'string') {
+      const propValue = source.properties[property];
+      if (propValue !== undefined) {
+        return {
+          type: 'NUMERIC',
+          value: typeof propValue === 'number' ? propValue : propValue.value,
+          unit: typeof propValue === 'object' ? propValue.unit : null,
+          projectedFrom: property
+        };
+      }
+    }
+
+    // Check context for property associations
+    if (context && context.session) {
+      const propKey = `${source.name || '_'}:${property}`;
+      const stored = context.session.localSymbols.get(propKey);
+      if (stored && (stored.type === 'NUMERIC' || stored.type === 'MEASURED')) {
+        return {
+          type: 'NUMERIC',
+          value: stored.value,
+          unit: stored.unit,
+          projectedFrom: propKey
+        };
+      }
+    }
+
+    // No numeric property found - return zero with warning
+    return {
+      type: 'NUMERIC',
+      value: 0,
+      unit: null,
+      projectedFrom: null,
+      warning: `No numeric property '${property}' found for concept`
+    };
+  }
+
+  // Case 4: Property is NUMERIC - treat source as property name
+  if (property && property.type === 'NUMERIC') {
+    return property;
+  }
+
+  throw new Error(`ProjectNumeric: cannot extract numeric from ${source.type || typeof source}`);
 }
 
 /**
  * Numeric verb registry
+ * Each verb receives (subject, object, context) and returns a typed value
  */
 const NUMERIC_VERBS = {
-  'HasNumericValue': (subject, object) => makeNumeric(parseFloat(subject)),
-  'AttachUnit': attachUnit,
-  'AddNumeric': addNumeric,
-  'SubNumeric': subNumeric,
-  'MulNumeric': mulNumeric,
-  'DivNumeric': divNumeric,
-  'AttachToConcept': attachToConcept,
-  'ProjectNumeric': projectNumeric
+  'HasNumericValue': (subject, object, context) => {
+    // Subject is the raw value, object is ignored
+    const rawValue = typeof subject === 'object' ? subject.value : subject;
+    return makeNumeric(parseFloat(rawValue));
+  },
+
+  'AttachUnit': (subject, object, context) => {
+    // Subject is NUMERIC, object is unit string
+    const unitStr = typeof object === 'object' ? object.value : object;
+    return attachUnit(subject, String(unitStr));
+  },
+
+  'AddNumeric': (subject, object, context) => addNumeric(subject, object),
+  'SubNumeric': (subject, object, context) => subNumeric(subject, object),
+  'MulNumeric': (subject, object, context) => mulNumeric(subject, object),
+  'DivNumeric': (subject, object, context) => divNumeric(subject, object),
+
+  'AttachToConcept': (subject, object, context) => attachToConcept(subject, object, context),
+  'ProjectNumeric': (subject, object, context) => projectNumeric(subject, object, context)
 };
 
 /**

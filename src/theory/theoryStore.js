@@ -34,9 +34,28 @@ function generateVersionId() {
  * @param {string} theoryName - Theory name
  * @returns {string} Directory path
  */
-function getTheoryPath(theoryName) {
+function getTheoriesRoot() {
   const config = getConfig();
-  return path.join(config.theoriesPath, theoryName);
+  const base = config.theoriesPath || path.join(config.workingFolder, 'theories');
+  return path.isAbsolute(base) ? base : path.join(config.workingFolder, 'theories');
+}
+
+/**
+ * Gets the directory path for a theory
+ * @param {string} theoryName - Theory name
+ * @returns {string} Directory path
+ */
+function getTheoryDir(theoryName) {
+  return path.join(getTheoriesRoot(), theoryName);
+}
+
+/**
+ * Gets the theory file path (theory.spockdsl)
+ * @param {string} theoryName - Theory name
+ * @returns {string} File path
+ */
+function getTheoryPath(theoryName) {
+  return path.join(getTheoryDir(theoryName), 'theory.spockdsl');
 }
 
 /**
@@ -47,12 +66,17 @@ function getTheoryPath(theoryName) {
  * @param {string|null} [parentVersionId] - Parent version
  * @returns {Object} Theory descriptor
  */
-function createTheoryDescriptor(name, ast, versionId, parentVersionId = null) {
+function createTheoryDescriptor(name, sourceOrAst, versionId, parentVersionId = null) {
+  const isSourceString = typeof sourceOrAst === 'string';
+  const source = isSourceString ? sourceOrAst : null;
+  const ast = isSourceString ? parse(sourceOrAst) : sourceOrAst;
+
   return {
     name,
     versionId: versionId || generateVersionId(),
     parentVersionId,
     ast,
+    source: source || astToText(ast),
     vectors: new Map(),  // Cached prototype vectors
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
@@ -66,24 +90,19 @@ function createTheoryDescriptor(name, ast, versionId, parentVersionId = null) {
  * @throws {TheoryNotFoundError} If theory doesn't exist
  */
 function loadTheory(name) {
-  const theoryPath = getTheoryPath(name);
+  ensureTheoriesDirectory();
+  const theoryFile = getTheoryPath(name);
+  const theoryDir = getTheoryDir(name);
 
-  // Check if directory exists
-  if (!fs.existsSync(theoryPath)) {
+  if (!fs.existsSync(theoryFile)) {
     throw new TheoryNotFoundError(name);
   }
 
-  // Read DSL file
-  const dslPath = path.join(theoryPath, 'theory.spockdsl');
-  if (!fs.existsSync(dslPath)) {
-    throw new TheoryNotFoundError(name);
-  }
-
-  const dslText = fs.readFileSync(dslPath, 'utf8');
+  const dslText = fs.readFileSync(theoryFile, 'utf8');
   const ast = parse(dslText);
 
   // Read metadata
-  const metadataPath = path.join(theoryPath, 'metadata.json');
+  const metadataPath = path.join(theoryDir, 'metadata.json');
   let metadata = {
     versionId: generateVersionId(),
     parentVersionId: null,
@@ -100,6 +119,7 @@ function loadTheory(name) {
     versionId: metadata.versionId,
     parentVersionId: metadata.parentVersionId,
     ast,
+    source: dslText,
     vectors: new Map(),
     createdAt: metadata.createdAt,
     updatedAt: metadata.updatedAt
@@ -110,32 +130,42 @@ function loadTheory(name) {
  * Saves a theory to disk
  * @param {Object} descriptor - Theory descriptor
  */
-function saveTheory(descriptor) {
-  const theoryPath = getTheoryPath(descriptor.name);
+function saveTheory(descriptorOrName, source) {
+  ensureTheoriesDirectory();
+  const descriptor = typeof descriptorOrName === 'string'
+    ? createTheoryDescriptor(descriptorOrName, source)
+    : descriptorOrName;
 
-  // Create directory if needed
-  if (!fs.existsSync(theoryPath)) {
-    fs.mkdirSync(theoryPath, { recursive: true });
+  // Ensure we have AST and source
+  let desc = descriptor;
+  if (!desc.ast && desc.source) {
+    desc = { ...desc, ast: parse(desc.source) };
+  }
+  if (!desc.source && desc.ast) {
+    desc = { ...desc, source: astToText(desc.ast) };
   }
 
-  // Convert AST back to DSL text
-  const dslText = astToText(descriptor.ast);
+  const theoryDir = getTheoryDir(desc.name);
+  if (!fs.existsSync(theoryDir)) {
+    fs.mkdirSync(theoryDir, { recursive: true });
+  }
 
-  // Write DSL file
-  const dslPath = path.join(theoryPath, 'theory.spockdsl');
+  const dslText = desc.source || astToText(desc.ast);
+  const dslPath = path.join(theoryDir, 'theory.spockdsl');
   fs.writeFileSync(dslPath, dslText, 'utf8');
 
-  // Update and write metadata
   const metadata = {
-    theoryId: descriptor.name,
-    versionId: descriptor.versionId,
-    parentVersionId: descriptor.parentVersionId,
-    createdAt: descriptor.createdAt,
+    theoryId: desc.name,
+    versionId: desc.versionId || generateVersionId(),
+    parentVersionId: desc.parentVersionId || null,
+    createdAt: desc.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
 
-  const metadataPath = path.join(theoryPath, 'metadata.json');
+  const metadataPath = path.join(theoryDir, 'metadata.json');
   fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2), 'utf8');
+
+  return { ...desc, source: dslText, versionId: metadata.versionId, parentVersionId: metadata.parentVersionId };
 }
 
 /**
@@ -143,15 +173,16 @@ function saveTheory(descriptor) {
  * @returns {Array<string>} Theory names
  */
 function listTheories() {
-  const config = getConfig();
+  const root = getTheoriesRoot();
 
-  if (!fs.existsSync(config.theoriesPath)) {
+  if (!fs.existsSync(root)) {
     return [];
   }
 
-  const entries = fs.readdirSync(config.theoriesPath, { withFileTypes: true });
+  const entries = fs.readdirSync(root, { withFileTypes: true });
   return entries
     .filter(e => e.isDirectory())
+    .filter(e => fs.existsSync(path.join(root, e.name, 'theory.spockdsl')))
     .map(e => e.name);
 }
 
@@ -171,13 +202,13 @@ function theoryExists(name) {
  * @returns {boolean} True if deleted
  */
 function deleteTheory(name) {
-  const theoryPath = getTheoryPath(name);
+  const theoryDir = getTheoryDir(name);
 
-  if (!fs.existsSync(theoryPath)) {
+  if (!fs.existsSync(theoryDir)) {
     return false;
   }
 
-  fs.rmSync(theoryPath, { recursive: true });
+  fs.rmSync(theoryDir, { recursive: true });
   return true;
 }
 
@@ -208,7 +239,9 @@ function astToText(ast) {
  * @returns {string} DSL statement
  */
 function statementToText(stmt) {
-  return `${stmt.declaration} ${stmt.subject} ${stmt.verb} ${stmt.object}`;
+  // Ensure declaration has @ prefix for valid DSL
+  const decl = stmt.declaration.startsWith('@') ? stmt.declaration : `@${stmt.declaration}`;
+  return `${decl} ${stmt.subject} ${stmt.verb} ${stmt.object}`;
 }
 
 /**
@@ -221,7 +254,9 @@ function macroToText(macro, indent = 0) {
   const pad = '    '.repeat(indent);
   const lines = [];
 
-  lines.push(`${pad}${macro.name} ${macro.declarationType} begin`);
+  // Ensure macro name has @ prefix for valid DSL
+  const name = macro.name.startsWith('@') ? macro.name : `@${macro.name}`;
+  lines.push(`${pad}${name} ${macro.declarationType} begin`);
 
   // Nested macros first
   for (const nested of macro.nestedMacros || []) {
@@ -242,10 +277,51 @@ function macroToText(macro, indent = 0) {
  * Ensures the theories directory exists
  */
 function ensureTheoriesDirectory() {
-  const config = getConfig();
-  if (!fs.existsSync(config.theoriesPath)) {
-    fs.mkdirSync(config.theoriesPath, { recursive: true });
+  const root = getTheoriesRoot();
+  if (!fs.existsSync(root)) {
+    fs.mkdirSync(root, { recursive: true });
   }
+}
+
+/**
+ * Seeds built-in theories from a source directory into the configured theories path.
+ * Copies any subdirectory that contains a `theory.spockdsl` file.
+ *
+ * @param {string} builtinDir - Path to bundled theories
+ * @returns {Array<string>} Names of seeded theories
+ */
+function seedBuiltinTheories(builtinDir) {
+  const seeded = [];
+  if (!builtinDir || !fs.existsSync(builtinDir)) {
+    return seeded;
+  }
+
+  ensureTheoriesDirectory();
+
+  const entries = fs.readdirSync(builtinDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+
+    const sourceDir = path.join(builtinDir, entry.name);
+    const sourceTheoryFile = path.join(sourceDir, 'theory.spockdsl');
+
+    if (!fs.existsSync(sourceTheoryFile)) {
+      continue; // not a theory folder
+    }
+
+    const targetDir = path.join(getTheoriesRoot(), entry.name);
+
+    if (!fs.existsSync(targetDir)) {
+      // Copy entire folder (theory.spockdsl + metadata if present)
+      fs.cpSync(sourceDir, targetDir, { recursive: true });
+      seeded.push(entry.name);
+    } else {
+      // Already exists; still mark as available
+      seeded.push(entry.name);
+    }
+  }
+
+  return seeded;
 }
 
 module.exports = {
@@ -256,6 +332,9 @@ module.exports = {
   deleteTheory,
   createTheoryDescriptor,
   ensureTheoriesDirectory,
+  getTheoriesRoot,
+  getTheoryDir,
+  seedBuiltinTheories,
   astToText,
   getTheoryPath,
   TheoryNotFoundError

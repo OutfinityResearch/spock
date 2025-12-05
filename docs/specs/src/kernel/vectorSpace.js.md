@@ -5,9 +5,9 @@
 | Field | Value |
 |-------|-------|
 | **Primary role** | Manage hypervector storage and basic vector math helpers. Hide TypedArray details from the rest of the system. |
-| **Public functions** | `createVector(dim)`, `createRandomVector(dim)`, `cloneVector(vec)`, `dot(a, b)`, `norm(vec)`, `normalise(vec)` |
-| **Depends on** | Standard JavaScript / Node.js APIs (Float32Array and related). |
-| **Used by** | `src/kernel/primitiveOps.js`, `src/viz/projectionService.js`, `src/api/engineFactory.js` |
+| **Public functions** | `createVector(dim)`, `createRandomVector(dim)`, `cloneVector(vec)`, `dot(a, b)`, `norm(vec)`, `normalise(vec)`, `cosineSimilarity(a, b)`, `scale(vec, scalar)`, `addVectors(a, b)`, `hadamard(a, b)`, `setRandomSeed(seed)` |
+| **Depends on** | `src/config/config.js`, Standard JavaScript / Node.js APIs (Float32Array and related). |
+| **Used by** | `src/kernel/primitiveOps.js`, `src/planning/planner.js`, `src/dsl/executor.js`, `src/api/engineFactory.js`, `src/viz/projectionService.js` |
 
 ## Traceability
 
@@ -120,3 +120,86 @@ Normalizes a vector to unit length (in-place or returns new vector based on impl
 - Returns zero vector if input is zero vector
 - Norm of result should be ≈ 1.0 (within floating-point tolerance)
 - Idempotent: normalise(normalise(v)) ≈ normalise(v)
+
+### `cosineSimilarity(a, b)`
+
+Computes the cosine similarity between two vectors.
+
+**Parameters:**
+- `a` (Float32Array): First vector
+- `b` (Float32Array): Second vector
+
+**Returns:**
+- number: Cosine similarity in [-1, 1]
+
+**Constraints:**
+- Both vectors must have the same dimension
+- Returns 0 if either vector is zero
+- Symmetric: cosineSimilarity(a, b) = cosineSimilarity(b, a)
+
+### `scale(vec, scalar)`
+
+Scales a vector by a scalar factor.
+
+**Parameters:**
+- `vec` (Float32Array): Input vector
+- `scalar` (number): Scale factor
+
+**Returns:**
+- Float32Array: Scaled vector (new array)
+
+**Constraints:**
+- Does not modify input vector
+- scale(v, 0) returns zero vector
+- scale(v, 1) returns copy of v
+
+### `addVectors(a, b)`
+
+Element-wise addition of two vectors.
+
+**Parameters:**
+- `a` (Float32Array): First vector
+- `b` (Float32Array): Second vector
+
+**Returns:**
+- Float32Array: Sum vector
+
+**Constraints:**
+- Both vectors must have the same dimension
+- Commutative: addVectors(a, b) = addVectors(b, a)
+
+### `hadamard(a, b)`
+
+Element-wise multiplication (Hadamard product) of two vectors.
+
+**Parameters:**
+- `a` (Float32Array): First vector
+- `b` (Float32Array): Second vector
+
+**Returns:**
+- Float32Array: Element-wise product
+
+**Constraints:**
+- Both vectors must have the same dimension
+- Commutative: hadamard(a, b) = hadamard(b, a)
+- Used for binding operations in VSA
+
+### `setRandomSeed(seed)`
+
+Sets the random seed for reproducible vector generation.
+
+**Parameters:**
+- `seed` (number|null): Seed value, or null for system random
+
+**Returns:**
+- void
+
+**Usage:**
+```javascript
+setRandomSeed(42);  // Deterministic for testing
+setRandomSeed(null); // Use Math.random
+```
+
+**Constraints:**
+- Affects all subsequent createRandomVector calls
+- Uses Mulberry32 PRNG for seeded generation

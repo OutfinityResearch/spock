@@ -1,0 +1,433 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>The Geometry of Truth – Spock AGISystem2</title>
+  <link rel="stylesheet" href="../reference/style.css">
+  <style>
+    .diagram-container {
+      background: #fafafa;
+      padding: 30px;
+      border-radius: 12px;
+      margin: 25px 0;
+      text-align: center;
+    }
+    .key-concept {
+      background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+      border-left: 4px solid #4caf50;
+      padding: 25px;
+      margin: 25px 0;
+      border-radius: 0 12px 12px 0;
+      font-size: 1.1em;
+    }
+    .comparison-box {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin: 25px 0;
+    }
+    .compare-item {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .compare-item.old {
+      border-top: 4px solid #e53935;
+    }
+    .compare-item.new {
+      border-top: 4px solid #4caf50;
+    }
+    .compare-item h4 {
+      margin-top: 0;
+    }
+    .truth-scale {
+      display: flex;
+      justify-content: space-between;
+      background: linear-gradient(to right, #e53935, #ff9800, #ffc107, #8bc34a, #4caf50);
+      padding: 15px;
+      border-radius: 8px;
+      color: white;
+      font-weight: bold;
+      margin: 20px 0;
+    }
+    .formula-box {
+      background: #263238;
+      color: #aed581;
+      padding: 20px;
+      border-radius: 8px;
+      font-family: 'Consolas', monospace;
+      text-align: center;
+      font-size: 1.1em;
+    }
+    .example-block {
+      background: #fff8e1;
+      border: 1px solid #ffe082;
+      padding: 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+  <div class="nav-header">
+    <h1>The Geometry of Truth</h1>
+    <small>
+      <a href="../index.html">Home</a> ·
+      <a href="index.html">Theory</a> ·
+      <a href="hyperdimensional.html">Hyperdimensional</a> ·
+      <a href="truth-geometry.html">Truth</a> ·
+      <a href="vsa-operations.html">Operations</a>
+    </small>
+    <small>Truth as direction, not boolean</small>
+  </div>
+
+  <div class="key-concept">
+    <strong>The Revolutionary Idea:</strong> In Spock AGISystem2, truth is not a binary value (true/false). It's a <em>direction</em> in high-dimensional space. A proposition is "true" to the degree that it aligns with this direction.
+  </div>
+
+  <h2>The Problem with Boolean Truth</h2>
+
+  <div class="comparison-box">
+    <div class="compare-item old">
+      <h4>❌ Classical Logic</h4>
+      <ul>
+        <li>Only TRUE or FALSE</li>
+        <li>"Socrates is mortal" = TRUE</li>
+        <li>"It might rain" = ??? (undefined)</li>
+        <li>No degrees of belief</li>
+        <li>Composition is complex (AND/OR/NOT)</li>
+      </ul>
+    </div>
+    <div class="compare-item new">
+      <h4>✓ Geometric Truth</h4>
+      <ul>
+        <li>Continuous from 0 to 1</li>
+        <li>"Socrates is mortal" = 0.95</li>
+        <li>"It might rain" = 0.6</li>
+        <li>Uncertainty is natural</li>
+        <li>Composition is vector addition</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Truth as a Canonical Direction</h2>
+
+  <p>At engine initialization, Spock creates a special vector called <strong>Truth</strong>:</p>
+
+  <div class="formula-box">
+    Truth = normalise(randomVector(512))<br>
+    False = -Truth<br>
+    Unknown = any vector orthogonal to Truth
+  </div>
+
+  <div class="diagram-container">
+    <svg width="650" height="400" viewBox="0 0 650 400">
+      <!-- Title -->
+      <text x="325" y="30" text-anchor="middle" font-size="18" font-weight="bold" fill="#1976d2">The Truth Axis</text>
+
+      <!-- Main coordinate system -->
+      <g transform="translate(325, 220)">
+        <!-- Axes -->
+        <line x1="0" y1="150" x2="0" y2="-150" stroke="#333" stroke-width="2" marker-end="url(#arrowhead2)"/>
+        <line x1="-200" y1="0" x2="200" y2="0" stroke="#999" stroke-width="1" stroke-dasharray="5,5"/>
+
+        <!-- Truth axis labels -->
+        <text x="15" y="-140" font-size="14" font-weight="bold" fill="#4caf50">Truth</text>
+        <text x="15" y="145" font-size="14" font-weight="bold" fill="#e53935">False</text>
+        <text x="190" y="-10" font-size="12" fill="#999">Other dimensions</text>
+
+        <!-- Unit circle -->
+        <circle cx="0" cy="0" r="120" fill="none" stroke="#e0e0e0" stroke-width="2"/>
+
+        <!-- Truth vector (vertical up) -->
+        <line x1="0" y1="0" x2="0" y2="-120" stroke="#4caf50" stroke-width="4"/>
+        <circle cx="0" cy="-120" r="6" fill="#4caf50"/>
+
+        <!-- False vector (vertical down) -->
+        <line x1="0" y1="0" x2="0" y2="120" stroke="#e53935" stroke-width="3" stroke-dasharray="8,4"/>
+        <circle cx="0" cy="120" r="5" fill="#e53935"/>
+
+        <!-- 80% true proposition -->
+        <line x1="0" y1="0" x2="72" y2="-96" stroke="#8bc34a" stroke-width="3"/>
+        <circle cx="72" cy="-96" r="6" fill="#8bc34a"/>
+        <text x="85" y="-90" font-size="12" fill="#8bc34a">P₁ (80% true)</text>
+
+        <!-- Angle arc -->
+        <path d="M 0,-40 A 40,40 0 0,1 24,-32" fill="none" stroke="#8bc34a" stroke-width="2"/>
+        <text x="30" y="-25" font-size="11" fill="#666">θ = 37°</text>
+
+        <!-- 50% true (uncertain) -->
+        <line x1="0" y1="0" x2="120" y2="0" stroke="#ff9800" stroke-width="3"/>
+        <circle cx="120" cy="0" r="6" fill="#ff9800"/>
+        <text x="130" y="5" font-size="12" fill="#ff9800">P₂ (50% = unknown)</text>
+
+        <!-- 20% true (mostly false) -->
+        <line x1="0" y1="0" x2="45" y2="110" stroke="#f44336" stroke-width="3"/>
+        <circle cx="45" cy="110" r="6" fill="#f44336"/>
+        <text x="60" y="115" font-size="12" fill="#f44336">P₃ (20% true)</text>
+
+        <!-- Legend box -->
+        <g transform="translate(-190, -120)">
+          <rect x="0" y="0" width="130" height="90" fill="white" stroke="#ddd" rx="5"/>
+          <text x="10" y="20" font-size="11" font-weight="bold" fill="#333">Truth Degree</text>
+          <text x="10" y="40" font-size="10" fill="#666">cos(θ) = ⟨P, Truth⟩</text>
+          <text x="10" y="58" font-size="10" fill="#666">score = (cos + 1) / 2</text>
+          <text x="10" y="76" font-size="10" fill="#666">→ normalized to [0, 1]</text>
+        </g>
+      </g>
+
+      <!-- Arrow marker -->
+      <defs>
+        <marker id="arrowhead2" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#333"/>
+        </marker>
+      </defs>
+    </svg>
+  </div>
+
+  <h2>Computing Truth Degree</h2>
+
+  <p>The Evaluate verb projects a proposition onto the Truth axis:</p>
+
+  <div class="formula-box">
+    truth_degree(P) = (cos(P, Truth) + 1) / 2
+    <br><br>
+    = (⟨P, Truth⟩ / (‖P‖ · ‖Truth‖) + 1) / 2
+    <br><br>
+    → Result in [0, 1]
+  </div>
+
+  <div class="truth-scale">
+    <span>0 (False)</span>
+    <span>0.25</span>
+    <span>0.5 (Unknown)</span>
+    <span>0.75</span>
+    <span>1 (True)</span>
+  </div>
+
+  <h2>Evidence Accumulation</h2>
+
+  <p>One of the most powerful features: evidence <strong>adds</strong> naturally.</p>
+
+  <div class="example-block">
+    <h4>Example: Multiple Witnesses</h4>
+    <p>Witness A says the light was red (60% confident):<br>
+    <code>evidenceA = 0.6 × Truth</code></p>
+    <p>Witness B also says red (50% confident):<br>
+    <code>evidenceB = 0.5 × Truth</code></p>
+    <p>Combined evidence:<br>
+    <code>combined = evidenceA + evidenceB = 1.1 × Truth</code><br>
+    After normalization: ~85% true</p>
+  </div>
+
+  <div class="diagram-container">
+    <svg width="600" height="280" viewBox="0 0 600 280">
+      <text x="300" y="25" text-anchor="middle" font-size="16" font-weight="bold" fill="#1976d2">Evidence Accumulation</text>
+
+      <g transform="translate(150, 160)">
+        <!-- Axis -->
+        <line x1="0" y1="80" x2="0" y2="-100" stroke="#333" stroke-width="2"/>
+        <text x="10" y="-90" font-size="12" fill="#4caf50">Truth</text>
+
+        <!-- Evidence A -->
+        <line x1="0" y1="0" x2="0" y2="-50" stroke="#2196f3" stroke-width="4"/>
+        <circle cx="0" cy="-50" r="5" fill="#2196f3"/>
+        <text x="10" y="-45" font-size="11" fill="#2196f3">Evidence A (0.6)</text>
+      </g>
+
+      <g transform="translate(250, 160)">
+        <text x="0" y="0" font-size="24" fill="#666">+</text>
+      </g>
+
+      <g transform="translate(320, 160)">
+        <!-- Axis -->
+        <line x1="0" y1="80" x2="0" y2="-100" stroke="#333" stroke-width="2"/>
+        <text x="10" y="-90" font-size="12" fill="#4caf50">Truth</text>
+
+        <!-- Evidence B -->
+        <line x1="0" y1="0" x2="0" y2="-42" stroke="#9c27b0" stroke-width="4"/>
+        <circle cx="0" cy="-42" r="5" fill="#9c27b0"/>
+        <text x="10" y="-37" font-size="11" fill="#9c27b0">Evidence B (0.5)</text>
+      </g>
+
+      <g transform="translate(400, 160)">
+        <text x="0" y="0" font-size="24" fill="#666">=</text>
+      </g>
+
+      <g transform="translate(480, 160)">
+        <!-- Axis -->
+        <line x1="0" y1="80" x2="0" y2="-100" stroke="#333" stroke-width="2"/>
+        <text x="10" y="-90" font-size="12" fill="#4caf50">Truth</text>
+
+        <!-- Combined (longer) -->
+        <line x1="0" y1="0" x2="0" y2="-92" stroke="#4caf50" stroke-width="4"/>
+        <circle cx="0" cy="-92" r="6" fill="#4caf50"/>
+        <text x="10" y="-87" font-size="11" fill="#4caf50">Combined (1.1)</text>
+        <text x="10" y="-72" font-size="10" fill="#666">→ ~85% after norm</text>
+      </g>
+
+      <text x="300" y="260" text-anchor="middle" font-size="13" fill="#1976d2">
+        Vector addition naturally accumulates aligned evidence!
+      </text>
+    </svg>
+  </div>
+
+  <h2>Contradictory Evidence</h2>
+
+  <p>Contradictions also emerge naturally:</p>
+
+  <div class="example-block">
+    <h4>Example: Conflicting Witnesses</h4>
+    <p>Witness A says red (80%):<br>
+    <code>evidenceA = 0.8 × Truth</code></p>
+    <p>Witness B says NOT red (70%):<br>
+    <code>evidenceB = 0.7 × (-Truth) = -0.7 × Truth</code></p>
+    <p>Combined:<br>
+    <code>combined = 0.8 × Truth - 0.7 × Truth = 0.1 × Truth</code><br>
+    Result: barely true (~55%)</p>
+  </div>
+
+  <h2>Uncertainty vs. Falsehood</h2>
+
+  <p>A crucial distinction that boolean logic can't make:</p>
+
+  <table class="matrix-table">
+    <tr>
+      <th>Situation</th>
+      <th>Vector Position</th>
+      <th>Truth Score</th>
+      <th>Meaning</th>
+    </tr>
+    <tr>
+      <td>Definitely true</td>
+      <td>Parallel to Truth</td>
+      <td>1.0</td>
+      <td>Strong positive evidence</td>
+    </tr>
+    <tr>
+      <td>Probably true</td>
+      <td>~30° from Truth</td>
+      <td>0.75</td>
+      <td>Good evidence, some uncertainty</td>
+    </tr>
+    <tr>
+      <td>Unknown</td>
+      <td>Orthogonal to Truth</td>
+      <td>0.5</td>
+      <td>No evidence either way</td>
+    </tr>
+    <tr>
+      <td>Probably false</td>
+      <td>~150° from Truth</td>
+      <td>0.25</td>
+      <td>Evidence against</td>
+    </tr>
+    <tr>
+      <td>Definitely false</td>
+      <td>Opposite to Truth</td>
+      <td>0.0</td>
+      <td>Strong negative evidence</td>
+    </tr>
+  </table>
+
+  <h2>The Evaluate Verb</h2>
+
+  <p>In SpockDSL, the <code>Evaluate</code> verb computes this projection:</p>
+
+  <div class="formula-box">
+@claim Socrates Is Mortal
+@truth claim Evaluate Truth
+
+<span style="color:#90caf9">// Returns: SCALAR with value in [0, 1]</span>
+  </div>
+
+  <h2>Confidence vs. Truth</h2>
+
+  <p>Spock also tracks <strong>confidence</strong> (how far from 0.5):</p>
+
+  <div class="diagram-container">
+    <svg width="500" height="150" viewBox="0 0 500 150">
+      <!-- Scale bar -->
+      <rect x="50" y="50" width="400" height="30" fill="url(#confGradient)" rx="5"/>
+
+      <!-- Markers -->
+      <line x1="50" y1="90" x2="50" y2="100" stroke="#333" stroke-width="2"/>
+      <text x="50" y="115" text-anchor="middle" font-size="11">0</text>
+      <text x="50" y="130" text-anchor="middle" font-size="10" fill="#e53935">False</text>
+
+      <line x1="250" y1="90" x2="250" y2="100" stroke="#333" stroke-width="2"/>
+      <text x="250" y="115" text-anchor="middle" font-size="11">0.5</text>
+      <text x="250" y="130" text-anchor="middle" font-size="10" fill="#999">Unknown</text>
+
+      <line x1="450" y1="90" x2="450" y2="100" stroke="#333" stroke-width="2"/>
+      <text x="450" y="115" text-anchor="middle" font-size="11">1</text>
+      <text x="450" y="130" text-anchor="middle" font-size="10" fill="#4caf50">True</text>
+
+      <!-- Confidence regions -->
+      <text x="150" y="40" text-anchor="middle" font-size="11" fill="#666">High confidence (false)</text>
+      <text x="250" y="40" text-anchor="middle" font-size="11" fill="#666">Low confidence</text>
+      <text x="350" y="40" text-anchor="middle" font-size="11" fill="#666">High confidence (true)</text>
+
+      <defs>
+        <linearGradient id="confGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#e53935"/>
+          <stop offset="50%" stop-color="#bdbdbd"/>
+          <stop offset="100%" stop-color="#4caf50"/>
+        </linearGradient>
+      </defs>
+    </svg>
+  </div>
+
+  <div class="formula-box">
+    confidence = |truth_score - 0.5| × 2
+    <br><br>
+    0.95 truth → 0.9 confidence (very sure it's true)<br>
+    0.50 truth → 0.0 confidence (no idea)<br>
+    0.10 truth → 0.8 confidence (pretty sure it's false)
+  </div>
+
+  <h2>Why This Matters</h2>
+
+  <div class="key-concept">
+    <strong>Geometric truth enables:</strong>
+    <ul>
+      <li><strong>Graceful degradation:</strong> Partial knowledge → partial truth, not error</li>
+      <li><strong>Natural composition:</strong> Add evidence, don't write complex rules</li>
+      <li><strong>Uncertainty handling:</strong> "I don't know" is a first-class state</li>
+      <li><strong>Contradiction detection:</strong> Opposing evidence reduces magnitude</li>
+      <li><strong>Smooth reasoning:</strong> No discrete jumps, continuous navigation</li>
+    </ul>
+  </div>
+
+  <h2>Implementation in Code</h2>
+
+  <div class="formula-box">
+<span style="color:#90caf9">// From primitiveOps.js</span>
+function distance(a, b) {
+  const cosSim = vectorSpace.cosineSimilarity(a, b);
+  return (cosSim + 1) / 2;  <span style="color:#90caf9">// Normalize to [0, 1]</span>
+}
+
+<span style="color:#90caf9">// From sessionApi.js - Evaluate verb</span>
+function computeScores(session) {
+  const truth = getSymbol(session, 'Truth');
+  const result = getSymbol(session, '@result');
+
+  const truthScore = executeEvaluate(result, truth, context);
+  const confidence = Math.abs(truthScore - 0.5) * 2;
+
+  return { truth: truthScore, confidence };
+}
+  </div>
+
+  <div class="footer-nav">
+    <p>
+      <a href="hyperdimensional.html">← Hyperdimensional Computing</a> ·
+      <strong>Next:</strong> <a href="vsa-operations.html">Vector Symbolic Operations →</a>
+    </p>
+  </div>
+  </div>
+</body>
+</html>

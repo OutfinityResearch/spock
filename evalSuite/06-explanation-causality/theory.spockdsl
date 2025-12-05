@@ -1,0 +1,18 @@
+@CausalityTheory theory begin
+    # Link a cause to an effect
+    @Causes verb begin
+        @link $subject Bind $object
+        @result $link Move $subject
+    end
+
+    # Aggregate multiple causes
+    @CombineCauses verb begin
+        @result $subject Add $object
+    end
+
+    # Explain an effect by measuring alignment of a cause
+    @Explain verb begin
+        @alignment $subject Distance $object
+        @result Truth Modulate $alignment
+    end
+end

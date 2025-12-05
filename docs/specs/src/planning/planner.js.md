@@ -5,8 +5,8 @@
 | Field | Value |
 |-------|-------|
 | **Primary role** | Implement the `Plan` and `Solve` verbs using Semantic Gradient Descent - geometric navigation through conceptual space toward goal states. |
-| **Public functions** | `plan(currentState, goalState, context)`, `solve(constraints, context)` |
-| **Depends on** | `src/kernel/primitiveOps.js`, `src/dsl/executor.js`, `src/session/sessionManager.js` |
+| **Public functions** | `plan(initialState, goalState, candidateActions, options)`, `solve(initialState, constraints, options)`, `isPlanningVerb(verbName)`, `getPlanningVerb(verbName)`, `executePlanVerb(subject, object, context)`, `executeSolveVerb(subject, object, context)` |
+| **Depends on** | `src/kernel/vectorSpace.js`, `src/kernel/primitiveOps.js`, `src/config/config.js` |
 | **Used by** | `src/dsl/executor.js` (verb dispatch), `src/api/sessionApi.js` |
 
 ## Traceability
@@ -24,32 +24,40 @@ The planner navigates the conceptual space by choosing actions that minimize ang
 ### Core Loop
 
 ```javascript
-function plan(currentState, goalState, context) {
-  const plan = [];
-  let current = currentState;
-  const epsilon = context.config.planningEpsilon || 0.05;
-  const maxSteps = context.config.maxPlanningSteps || 100;
+function plan(initialState, goalState, candidateActions, options = {}) {
+  const state = new PlannerState(initialState, goalState, options);
+  const trace = [];
+  let stepNum = 0;
 
-  for (let step = 0; step < maxSteps; step++) {
-    const currentDistance = primitiveOps.distance(current, goalState);
+  while (!state.isGoalReached() && stepNum < state.maxSteps) {
+    stepNum++;
 
-    if (currentDistance < epsilon) {
-      return { success: true, plan, finalState: current };
+    // Find best action
+    const bestAction = findBestAction(state.currentVector, state.goalVector, candidateActions);
+
+    if (!bestAction || bestAction.improvement <= 0) {
+      // Handle plateau based on strategy
+      if (state.plateauStrategy === 'fail') break;
+      if (state.plateauStrategy === 'random_restart') {
+        // Add small random perturbation
+        continue;
+      }
+      break;
     }
 
-    const candidates = generateCandidates(current, context);
-    const best = selectBest(candidates, goalState);
-
-    if (!best || best.distance >= currentDistance) {
-      // Plateau - no improvement possible
-      return handlePlateau(current, goalState, plan, context);
-    }
-
-    plan.push(best.action);
-    current = best.nextState;
+    // Apply action
+    state.currentVector = vectorSpace.addVectors(state.currentVector, bestAction.vector);
+    state.currentVector = vectorSpace.normalise(state.currentVector);
+    state.recordStep({ step: stepNum, action: bestAction.name, ... });
   }
 
-  return { success: false, reason: 'max_steps_exceeded', plan };
+  return {
+    success: state.isGoalReached(),
+    steps: state.steps,
+    trace,
+    finalDistance: state.distanceToGoal(),
+    totalSteps: stepNum
+  };
 }
 ```
 
@@ -134,24 +142,42 @@ function handlePlateau(current, goal, planSoFar, context) {
 
 ## Solve Algorithm
 
-`Solve` finds a point (assignment) rather than a trajectory:
+`Solve` finds a point satisfying constraints through iterative projection:
 
 ```javascript
-function solve(constraints, context) {
-  // Constraints are vectors representing desired properties
-  // Goal is to find a state that minimizes total distance to all constraints
+function solve(initialState, constraints, options = {}) {
+  let current = vectorSpace.cloneVector(initialState);
+  const epsilon = options.epsilon || config.planningEpsilon;
+  const maxSteps = options.maxSteps || config.maxPlanningSteps;
+  let stepNum = 0;
 
-  const goalVector = combineConstraints(constraints);
-  return plan(context.currentState, goalVector, context);
-}
+  // Iteratively project onto each constraint
+  while (stepNum < maxSteps) {
+    stepNum++;
+    let anyAdjustment = false;
 
-function combineConstraints(constraints) {
-  // Sum and normalize - find the "consensus" point
-  let combined = createZeroVector();
-  for (const constraint of constraints) {
-    combined = primitiveOps.add(combined, constraint.vector);
+    for (const constraint of constraints) {
+      const similarity = vectorSpace.cosineSimilarity(current, constraint.vector);
+      const violation = constraint.minSimilarity - similarity;
+
+      if (violation > epsilon) {
+        anyAdjustment = true;
+        const adjustment = vectorSpace.scale(constraint.vector, violation * 0.5);
+        current = vectorSpace.addVectors(current, adjustment);
+        current = vectorSpace.normalise(current);
+      }
+    }
+
+    if (!anyAdjustment) break;  // All constraints satisfied
   }
-  return primitiveOps.normalise(combined);
+
+  return {
+    success: allConstraintsSatisfied,
+    solution: current,
+    trace,
+    violations: finalViolations,
+    totalSteps: stepNum
+  };
 }
 ```
 
@@ -184,12 +210,22 @@ Planning produces a trace compatible with the DSL output format:
 
 ## Integration with Executor
 
-The executor dispatches `Plan` and `Solve` verbs to this module:
+The executor dispatches `Plan` and `Solve` verbs to this module via the verb registry:
 
 ```javascript
-// In executor.js verb dispatch
-case 'Plan':
-  return planner.plan(subjectValue, objectValue, context);
-case 'Solve':
-  return planner.solve(subjectValue, context);
+const PLANNING_VERBS = {
+  'Plan': executePlanVerb,
+  'Solve': executeSolveVerb
+};
+
+function isPlanningVerb(verbName) {
+  return verbName in PLANNING_VERBS;
+}
+
+function getPlanningVerb(verbName) {
+  return PLANNING_VERBS[verbName] || null;
+}
+
+// executePlanVerb extracts candidate actions from session, calls plan()
+// executeSolveVerb converts object to constraints, calls solve()
 ```

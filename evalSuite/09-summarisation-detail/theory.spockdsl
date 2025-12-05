@@ -1,0 +1,13 @@
+@SummaryTheory theory begin
+    # Summarise two descriptions into one prototype
+    @Summarise verb begin
+        @combined $subject Add $object
+        @result $combined Normalise $combined
+    end
+
+    # Expand a prototype back into detail
+    @Detail verb begin
+        @projection $subject Add $object
+        @result $projection Identity $projection
+    end
+end

@@ -109,6 +109,17 @@ function parseStatementLine(lineTokens) {
     );
   }
 
+  // Operands and verb cannot be declarations (@...). Use $name for references.
+  for (const operand of [subject, verb, object]) {
+    if (operand.type === TokenType.DECLARATION) {
+      throw new ParseError(
+        `Operands/verb cannot start with @ (found '${operand.value}'). Use plain name or $name`,
+        operand.line,
+        operand.column
+      );
+    }
+  }
+
   return createStatementAST(decl, subject, verb, object);
 }
 

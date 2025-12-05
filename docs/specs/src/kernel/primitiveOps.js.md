@@ -5,7 +5,7 @@
 | Field | Value |
 |-------|-------|
 | **Primary role** | Implement geometric primitive verbs that correspond to `Add`, `Bind`, `Negate`, `Distance`, `Move`, `Modulate`, `Identity`, `Normalise` as pure vector operations. |
-| **Public functions** | `add(a, b)`, `bind(a, b)`, `negate(v)`, `distance(a, b)`, `move(state, delta)`, `modulate(v, operand)`, `identity(v)`, `normalise(v)` |
+| **Public functions** | `add(a, b)`, `bind(a, b)`, `negate(v)`, `distance(a, b)`, `move(state, delta)`, `modulate(v, operand)`, `identity(v)`, `normalise(v)`, `isKernelVerb(name)`, `getKernelVerb(name)`, `executeKernelVerb(name, a, b)` |
 | **Depends on** | `src/kernel/vectorSpace.js` |
 | **Used by** | `src/dsl/executor.js`, standard logic theories that map verb names to these functions |
 
@@ -169,3 +169,45 @@ Normalizes a vector to unit length.
 - Returns zero vector if input is zero vector
 - Norm of result should be ≈ 1.0 (within floating-point tolerance)
 - Idempotent: `normalise(normalise(v)) ≈ normalise(v)`
+
+## Verb Registry Functions
+
+### `isKernelVerb(name)`
+
+Checks if a verb name is a built-in kernel verb.
+
+**Parameters:**
+- `name` (string): Verb name to check
+
+**Returns:**
+- boolean: `true` if `name` is one of the 8 kernel verbs
+
+### `getKernelVerb(name)`
+
+Gets the function implementing a kernel verb.
+
+**Parameters:**
+- `name` (string): Verb name
+
+**Returns:**
+- function | undefined: Implementation function or undefined
+
+### `executeKernelVerb(name, a, b)`
+
+Executes a kernel verb by name.
+
+**Parameters:**
+- `name` (string): Verb name
+- `a` (Float32Array): First operand
+- `b` (Float32Array | number | undefined): Second operand (optional for unary ops)
+
+**Returns:**
+- Float32Array | number: Result of verb execution
+
+**Throws:**
+- Error if verb name is not a kernel verb
+
+## Design Note
+
+`Is` is NOT a kernel verb - it is defined in BaseLogic theory as `Bind` + `Move`.
+Kernel verbs are pure geometric operations; `Is` is a semantic verb.

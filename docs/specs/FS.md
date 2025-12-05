@@ -175,12 +175,15 @@ This section fixes the syntax and evaluation rules for SpockDSL.
 
 | Element | Definition |
 |---------|------------|
-| Statement | `@varName subject verb object` where `@varName` declares a new symbol and the other three tokens reference existing symbols or literals. |
+| Statement | `@varName subject verb object` (exactly 4 tokens). `@varName` declares a new symbol; the other tokens reference literals or existing names. |
 | Macro header | `@MacroName declarationType begin` where `declarationType ∈ {theory, verb, session}`. |
 | Macro body | Sequence of statements and nested macro definitions ending at `end`. |
 | SSA rule | Inside a single macro each `@name` appears only once as a declaration. |
 | Dependency graph | Nodes are statements; edges connect a statement to the statements that define the names it uses. |
 | Topological evaluation | The interpreter executes statements in an order that respects the dependency graph. |
+| Comments/blank lines | Lines starting with `#` or empty/whitespace-only lines are ignored anywhere. |
+| Operand naming | Only the first token may start with `@`. Operands/verbs use plain names. To reference a prior declaration explicitly, prefix it with `$name`; otherwise the operand is treated as a concept/fact from the current or overlaid theories. |
+| Garbage collection | Only declarations explicitly persisted (see FS-06) or returned as result are expected to remain after execution. |
 
 ### Example: Simple Theory
 
@@ -230,7 +233,7 @@ This section describes how theories, sessions and versioning work at the functio
 | Overlay | Achieved by `UseTheory`, which makes a theory visible in the current session without copying its content. |
 | Branching | `BranchTheory` creates a new in-memory theory that initially copies a base theory and records a parent version. |
 | Merging | `MergeTheory` combines two in-memory theories and produces a merged version. |
-| Persistence | `Remember` writes selected facts or definitions from a session or branched theory to a named persistent theory on disk. |
+| Persistence | `Remember` writes selected facts or definitions from a session or branched theory to a named persistent theory on disk; `Persist` pins a value in the current session so it survives GC and is emitted in `DSL_OUTPUT`. |
 
 ### Example: Versioned Session
 

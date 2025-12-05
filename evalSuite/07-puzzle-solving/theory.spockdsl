@@ -1,0 +1,25 @@
+@PuzzleTheory theory begin
+    # Assign a colour to a region
+    @HasColor verb begin
+        @binding $subject Bind $object
+        @result $binding Move $subject
+    end
+
+    # Combine two constraints
+    @Constraint verb begin
+        @combined $subject Add $object
+        @result $combined Normalise $combined
+    end
+
+    # Mark two assignments as conflicting
+    @Conflict verb begin
+        @conflict $subject Negate $object
+        @result $conflict Move $subject
+    end
+
+    # Evaluate whether constraints are satisfied
+    @Consistent verb begin
+        @similarity $subject Distance $object
+        @result Truth Modulate $similarity
+    end
+end

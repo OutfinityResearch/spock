@@ -1,0 +1,31 @@
+@LinearPlanning theory begin
+    # Move from one location to another
+    @GoTo verb begin
+        @path $subject Bind $object
+        @result $path Move $subject
+    end
+
+    # Pick up an object
+    @PickUp verb begin
+        @grasp $subject Bind $object
+        @result $grasp Move $subject
+    end
+
+    # Place an object down
+    @Place verb begin
+        @drop $subject Bind $object
+        @result $drop Move $subject
+    end
+
+    # Concatenate two plan fragments
+    @Sequence verb begin
+        @chain $subject Add $object
+        @result $chain Normalise $chain
+    end
+
+    # Evaluate whether a plan reaches the goal
+    @Achieves verb begin
+        @similarity $subject Distance $object
+        @result Truth Modulate $similarity
+    end
+end

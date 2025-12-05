@@ -1,430 +1,333 @@
+#!/usr/bin/env node
 /**
- * @fileoverview Test runner for Spock GOS
+ * @fileoverview Main Test Runner for Spock GOS
+ *
+ * Usage:
+ *   node tests/run.js                  # Run all tests
+ *   node tests/run.js --suite kernel   # Run kernel suite
+ *   node tests/run.js --suite dsl      # Run DSL suite
+ *   node tests/run.js --verbose        # Verbose output
+ *   node tests/run.js --help           # Show help
+ *
+ * Specs: DS_tests_map.md
  */
 
 'use strict';
 
+const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 
-// Track test results
-let passed = 0;
-let failed = 0;
-const failures = [];
+// Colors
+const colors = process.stdout.isTTY;
+const c = {
+  reset: colors ? '\x1b[0m' : '',
+  bright: colors ? '\x1b[1m' : '',
+  dim: colors ? '\x1b[2m' : '',
+  green: colors ? '\x1b[32m' : '',
+  red: colors ? '\x1b[31m' : '',
+  yellow: colors ? '\x1b[33m' : '',
+  blue: colors ? '\x1b[34m' : '',
+  cyan: colors ? '\x1b[36m' : ''
+};
 
-/**
- * Simple assertion helper
- */
-function assert(condition, message) {
-  if (!condition) {
-    throw new Error(message || 'Assertion failed');
+// Test suite definitions
+const suites = {
+  kernel: {
+    name: 'Kernel Layer',
+    files: [
+      'kernel/vectorSpace.test.js',
+      'kernel/primitiveOps.test.js',
+      'kernel/numericKernel.test.js'
+    ],
+    specs: ['URS-003', 'FS-01', 'FS-02', 'DS-Kernel']
+  },
+  dsl: {
+    name: 'DSL Engine',
+    files: [
+      'dsl/tokenizer.test.js',
+      'dsl/parser.test.js',
+      'dsl/dependencyGraph.test.js',
+      'dsl/executor.test.js'
+    ],
+    specs: ['URS-004', 'FS-03', 'DS-DSL']
+  },
+  session: {
+    name: 'Session Management',
+    files: [
+      'session/sessionManager.test.js'
+    ],
+    specs: ['URS-005', 'FS-04', 'DS-Session']
+  },
+  theory: {
+    name: 'Theory Storage & Versioning',
+    files: [
+      'theory/theoryStore.test.js',
+      'theory/theoryVersioning.test.js'
+    ],
+    specs: ['URS-005', 'FS-04', 'FS-06', 'DS-Theory']
+  },
+  planning: {
+    name: 'Planning & Solving',
+    files: [
+      'planning/planner.test.js'
+    ],
+    specs: ['URS-004', 'FS-02', 'DS-Planning']
+  },
+  logging: {
+    name: 'Trace Logging',
+    files: [
+      'logging/traceLogger.test.js'
+    ],
+    specs: ['URS-008', 'FS-07', 'DS-DSL']
+  },
+  api: {
+    name: 'Public API',
+    files: [
+      'api/engineFactory.test.js',
+      'api/sessionApi.test.js'
+    ],
+    specs: ['URS-006', 'URS-007', 'FS-06']
   }
+};
+
+// CLI argument parsing
+const args = process.argv.slice(2);
+const options = {
+  verbose: args.includes('--verbose') || args.includes('-v'),
+  help: args.includes('--help') || args.includes('-h'),
+  suite: null
+};
+
+// Find --suite argument
+const suiteIdx = args.indexOf('--suite');
+if (suiteIdx !== -1 && args[suiteIdx + 1]) {
+  options.suite = args[suiteIdx + 1];
 }
 
-function assertEqual(actual, expected, message) {
-  if (actual !== expected) {
-    throw new Error(message || `Expected ${expected}, got ${actual}`);
-  }
+// Help text
+if (options.help) {
+  console.log(`
+${c.bright}Spock GOS Test Runner${c.reset}
+
+${c.cyan}Usage:${c.reset}
+  node tests/run.js [options]
+
+${c.cyan}Options:${c.reset}
+  --suite <name>   Run specific test suite
+  --verbose, -v    Show detailed test output
+  --help, -h       Show this help
+
+${c.cyan}Available Suites:${c.reset}
+${Object.entries(suites).map(([key, s]) => `  ${c.bright}${key}${c.reset}\t${s.name} (${s.files.length} files)`).join('\n')}
+
+${c.cyan}Examples:${c.reset}
+  node tests/run.js                    # Run all tests
+  node tests/run.js --suite kernel     # Run kernel tests only
+  node tests/run.js --verbose          # Verbose output
+
+${c.cyan}Test Files:${c.reset}
+  Each test file can also be run individually:
+  node tests/kernel/vectorSpace.test.js
+  node tests/kernel/vectorSpace.test.js --verbose
+`);
+  process.exit(0);
 }
 
-function assertClose(actual, expected, tolerance = 0.001, message) {
-  if (Math.abs(actual - expected) > tolerance) {
-    throw new Error(message || `Expected ${expected} ± ${tolerance}, got ${actual}`);
-  }
-}
+// Run a single test file
+function runTestFile(filePath) {
+  return new Promise((resolve) => {
+    const fullPath = path.join(__dirname, filePath);
 
-function assertThrows(fn, message) {
-  let threw = false;
-  try {
-    fn();
-  } catch (e) {
-    threw = true;
-  }
-  if (!threw) {
-    throw new Error(message || 'Expected function to throw');
-  }
-}
+    if (!fs.existsSync(fullPath)) {
+      resolve({
+        file: filePath,
+        success: false,
+        error: 'File not found',
+        passed: 0,
+        failed: 1,
+        output: ''
+      });
+      return;
+    }
 
-/**
- * Runs a test
- */
-function test(name, fn) {
-  try {
-    fn();
-    passed++;
-    console.log(`  ✓ ${name}`);
-  } catch (e) {
-    failed++;
-    failures.push({ name, error: e });
-    console.log(`  ✗ ${name}`);
-    console.log(`    ${e.message}`);
-  }
-}
+    // Announce which test is running for easier tracing
+    console.log(`\n${c.dim}→ Running ${filePath} (cwd: ${process.cwd()})${c.reset}`);
 
-/**
- * Describes a test suite
- */
-function describe(suiteName, fn) {
-  console.log(`\n${suiteName}`);
-  fn();
-}
+    // Capture stdout/stderr via temp files (the harness can mute pipes)
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'spock-test-'));
+    const stdoutPath = path.join(tmpDir, 'stdout.log');
+    const stderrPath = path.join(tmpDir, 'stderr.log');
+    const stdoutFd = fs.openSync(stdoutPath, 'w');
+    const stderrFd = fs.openSync(stderrPath, 'w');
 
-// Make helpers global for test files
-global.test = test;
-global.describe = describe;
-global.assert = assert;
-global.assertEqual = assertEqual;
-global.assertClose = assertClose;
-global.assertThrows = assertThrows;
-
-// ============== TESTS ==============
-
-describe('config.js', () => {
-  const { getConfig, setConfig, resetConfig, DEFAULTS } = require('../src/config/config');
-
-  test('returns default configuration', () => {
-    resetConfig();
-    const config = getConfig();
-    assertEqual(config.dimensions, 512);
-    assertEqual(config.logLevel, 'summary');
-  });
-
-  test('setConfig updates values', () => {
-    resetConfig();
-    setConfig({ dimensions: 1024 });
-    const config = getConfig();
-    assertEqual(config.dimensions, 1024);
-  });
-
-  test('validates dimensions', () => {
-    resetConfig();
-    assertThrows(() => setConfig({ dimensions: 100 }), 'Should reject non-power-of-2');
-  });
-
-  test('returns frozen config', () => {
-    resetConfig();
-    const config = getConfig();
-    assertThrows(() => { config.dimensions = 999; }, 'Should be frozen');
-  });
-});
-
-describe('vectorSpace.js', () => {
-  const vectorSpace = require('../src/kernel/vectorSpace');
-  const { resetConfig } = require('../src/config/config');
-
-  test('createVector returns zero vector', () => {
-    resetConfig();
-    const v = vectorSpace.createVector(10);
-    assertEqual(v.length, 10);
-    assertEqual(v[0], 0);
-    assertEqual(v[9], 0);
-  });
-
-  test('createRandomVector returns non-zero', () => {
-    const v = vectorSpace.createRandomVector(100);
-    assertEqual(v.length, 100);
-    const sum = v.reduce((a, b) => a + Math.abs(b), 0);
-    assert(sum > 0, 'Should have non-zero elements');
-  });
-
-  test('dot product', () => {
-    const a = new Float32Array([1, 2, 3]);
-    const b = new Float32Array([4, 5, 6]);
-    const result = vectorSpace.dot(a, b);
-    assertEqual(result, 32);  // 1*4 + 2*5 + 3*6
-  });
-
-  test('norm', () => {
-    const v = new Float32Array([3, 4]);
-    const n = vectorSpace.norm(v);
-    assertEqual(n, 5);  // sqrt(9 + 16)
-  });
-
-  test('normalise', () => {
-    const v = new Float32Array([3, 4]);
-    const n = vectorSpace.normalise(v);
-    assertClose(vectorSpace.norm(n), 1.0);
-  });
-
-  test('cosineSimilarity identical vectors', () => {
-    const v = new Float32Array([1, 2, 3]);
-    const sim = vectorSpace.cosineSimilarity(v, v);
-    assertClose(sim, 1.0);
-  });
-});
-
-describe('primitiveOps.js', () => {
-  const ops = require('../src/kernel/primitiveOps');
-
-  test('add vectors', () => {
-    const a = new Float32Array([1, 2, 3]);
-    const b = new Float32Array([4, 5, 6]);
-    const r = ops.add(a, b);
-    assertEqual(r[0], 5);
-    assertEqual(r[1], 7);
-    assertEqual(r[2], 9);
-  });
-
-  test('negate vector', () => {
-    const v = new Float32Array([1, -2, 3]);
-    const r = ops.negate(v);
-    assertEqual(r[0], -1);
-    assertEqual(r[1], 2);
-    assertEqual(r[2], -3);
-  });
-
-  test('modulate with scalar', () => {
-    const v = new Float32Array([2, 4, 6]);
-    const r = ops.modulate(v, 0.5);
-    assertEqual(r[0], 1);
-    assertEqual(r[1], 2);
-    assertEqual(r[2], 3);
-  });
-
-  test('distance returns scalar', () => {
-    const a = new Float32Array([1, 0]);
-    const b = new Float32Array([1, 0]);
-    const d = ops.distance(a, b);
-    assert(typeof d === 'number', 'Should return number');
-    assertClose(d, 1.0);  // Identical vectors -> similarity 1
-  });
-
-  test('isKernelVerb', () => {
-    assert(ops.isKernelVerb('Add'));
-    assert(ops.isKernelVerb('Modulate'));
-    assert(!ops.isKernelVerb('CustomVerb'));
-  });
-});
-
-describe('tokenizer.js', () => {
-  const { tokenizeLine, tokenizeScript, TokenType } = require('../src/dsl/tokenizer');
-
-  test('tokenizes declaration', () => {
-    const tokens = tokenizeLine('@fact1 a In b');
-    assertEqual(tokens.length, 4);
-    assertEqual(tokens[0].type, TokenType.DECLARATION);
-    assertEqual(tokens[0].value, '@fact1');
-  });
-
-  test('tokenizes magic variables', () => {
-    const tokens = tokenizeLine('@result $subject Bind $object');
-    assertEqual(tokens[1].type, TokenType.MAGIC_VAR);
-    assertEqual(tokens[3].type, TokenType.MAGIC_VAR);
-  });
-
-  test('strips comments', () => {
-    const tokens = tokenizeLine('@fact a Is b # this is a comment');
-    assertEqual(tokens.length, 4);
-  });
-
-  test('tokenizes keywords', () => {
-    const tokens = tokenizeLine('@Theory theory begin');
-    assertEqual(tokens[1].type, TokenType.KEYWORD);
-    assertEqual(tokens[2].type, TokenType.KEYWORD);
-  });
-});
-
-describe('parser.js', () => {
-  const { parse, ParseError } = require('../src/dsl/parser');
-
-  test('parses simple statement', () => {
-    const ast = parse('@fact a Is b');
-    assertEqual(ast.statements.length, 1);
-    assertEqual(ast.statements[0].declaration, '@fact');
-    assertEqual(ast.statements[0].subject, 'a');
-    assertEqual(ast.statements[0].verb, 'Is');
-    assertEqual(ast.statements[0].object, 'b');
-  });
-
-  test('parses theory macro', () => {
-    const ast = parse(`
-      @Logic theory begin
-        @f1 a Is b
-        @f2 b Is c
-      end
-    `);
-    assertEqual(ast.macros.length, 1);
-    assertEqual(ast.macros[0].name, '@Logic');
-    assertEqual(ast.macros[0].declarationType, 'theory');
-    assertEqual(ast.macros[0].body.length, 2);
-  });
-
-  test('parses verb macro', () => {
-    const ast = parse(`
-      @MyVerb verb begin
-        @temp $subject Add $object
-        @result temp Identity temp
-      end
-    `);
-    assertEqual(ast.macros[0].declarationType, 'verb');
-  });
-
-  test('rejects duplicate declarations', () => {
-    assertThrows(() => parse(`
-      @Test theory begin
-        @f1 a Is b
-        @f1 c Is d
-      end
-    `));
-  });
-
-  test('rejects verb without @result', () => {
-    assertThrows(() => parse(`
-      @BadVerb verb begin
-        @temp $subject Add $object
-      end
-    `));
-  });
-});
-
-describe('dependencyGraph.js', () => {
-  const { buildGraph, topoSort, CycleError } = require('../src/dsl/dependencyGraph');
-  const { parse } = require('../src/dsl/parser');
-
-  test('builds graph from macro', () => {
-    const ast = parse(`
-      @Test theory begin
-        @a X Is Y
-        @b @a Is Z
-      end
-    `);
-    const graph = buildGraph(ast.macros[0]);
-    assert(graph.nodes.has('@a'));
-    assert(graph.nodes.has('@b'));
-    assertEqual(graph.edges.get('@b').length, 1);
-  });
-
-  test('topological sort respects dependencies', () => {
-    const ast = parse(`
-      @Test theory begin
-        @c @a Add @b
-        @a X Is Y
-        @b Y Is Z
-      end
-    `);
-    const graph = buildGraph(ast.macros[0]);
-    const order = topoSort(graph);
-    const aIndex = order.indexOf('@a');
-    const bIndex = order.indexOf('@b');
-    const cIndex = order.indexOf('@c');
-    assert(aIndex < cIndex, '@a must come before @c');
-    assert(bIndex < cIndex, '@b must come before @c');
-  });
-
-  test('detects cycles', () => {
-    const ast = parse(`
-      @Test theory begin
-        @a @b Is X
-        @b @a Is Y
-      end
-    `);
-    const graph = buildGraph(ast.macros[0]);
-    assertThrows(() => topoSort(graph));
-  });
-});
-
-describe('traceLogger.js', () => {
-  const trace = require('../src/logging/traceLogger');
-
-  test('starts and ends trace', () => {
-    trace.clearAll();
-    trace.startTrace('test-1');
-    const result = trace.endTrace('test-1');
-    assertEqual(result.status, 'completed');
-    assertEqual(result.steps.length, 0);
-  });
-
-  test('logs steps', () => {
-    trace.clearAll();
-    trace.startTrace('test-2');
-    trace.logStep('test-2', { dslStatement: '@f a Is b' });
-    trace.logStep('test-2', { dslStatement: '@g b Is c' });
-    const result = trace.endTrace('test-2');
-    assertEqual(result.steps.length, 2);
-  });
-
-  test('traceToScript generates DSL', () => {
-    trace.clearAll();
-    trace.startTrace('test-3');
-    trace.logStep('test-3', { dslStatement: '@f a Is b' });
-    const result = trace.endTrace('test-3');
-    const script = trace.traceToScript(result);
-    assert(script.includes('@f a Is b'));
-  });
-});
-
-describe('Integration: Engine and Session', () => {
-  const { createSpockEngine } = require('../src/api/engineFactory');
-  const { createSessionApi } = require('../src/api/sessionApi');
-  const { resetConfig } = require('../src/config/config');
-
-  test('creates engine with canonical constants', () => {
-    resetConfig();
-    const engine = createSpockEngine({
-      workingFolder: '.spock-test',
-      randomSeed: 42
+    const args = options.verbose ? ['--verbose'] : [];
+    const proc = spawn('node', [fullPath, ...args], {
+      stdio: ['inherit', stdoutFd, stderrFd],
+      env: {
+        ...process.env,
+        VERBOSE: options.verbose ? 'true' : 'false'
+      }
     });
 
-    const globals = engine.getGlobalSymbols();
-    assert(globals.has('Truth'), 'Should have Truth');
-    assert(globals.has('False'), 'Should have False');
-    assert(globals.has('Zero'), 'Should have Zero');
+    const cleanupAndResolve = (result) => {
+      try {
+        fs.closeSync(stdoutFd);
+        fs.closeSync(stderrFd);
 
-    engine.shutdown();
-  });
+        // Read captured output
+        const output = fs.existsSync(stdoutPath) ? fs.readFileSync(stdoutPath, 'utf8') : '';
+        const errorOutput = fs.existsSync(stderrPath) ? fs.readFileSync(stderrPath, 'utf8') : '';
 
-  test('executes simple script', () => {
-    resetConfig();
-    const engine = createSpockEngine({
-      workingFolder: '.spock-test',
-      randomSeed: 42
+        // Echo outputs by default so user sees what happened
+        if (output.trim().length > 0) {
+          console.log(output.trim());
+        }
+        if (errorOutput.trim().length > 0) {
+          console.error(errorOutput.trim());
+        }
+
+        // Parse results from output
+        // Preferred format from testFramework (colors stripped by regex)
+        const passMatch = output.match(/Passed:\s*(\d+)/i);
+        const failMatch = output.match(/Failed:\s*(\d+)/i);
+
+        // Fallback for legacy test files: "<file>: N tests, X passed, Y failed"
+        const legacyMatch = output.match(/(\d+)\s+tests,\s*(\d+)\s+passed,\s*(\d+)\s+failed/i);
+
+        const passed = passMatch
+          ? parseInt(passMatch[1], 10)
+          : legacyMatch
+            ? parseInt(legacyMatch[2], 10)
+            : 0;
+
+        const failed = failMatch
+          ? parseInt(failMatch[1], 10)
+          : legacyMatch
+            ? parseInt(legacyMatch[3], 10)
+            : 0;
+
+        resolve({
+          file: filePath,
+          passed,
+          failed,
+          output,
+          errorOutput,
+          ...result
+        });
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    };
+
+    proc.on('close', (code) => {
+      cleanupAndResolve({ success: code === 0 });
     });
 
-    const session = engine.createSession();
-    const api = createSessionApi(session);
-
-    const result = api.learn('@fact Socrates Is Human');
-    assert(result.success, 'Should succeed');
-    assert(result.symbols.has('@fact'), 'Should have @fact');
-
-    engine.shutdown();
-  });
-
-  test('truth alignment works', () => {
-    resetConfig();
-    const engine = createSpockEngine({
-      workingFolder: '.spock-test',
-      randomSeed: 42
+    proc.on('error', (err) => {
+      cleanupAndResolve({
+        success: false,
+        error: err.message
+      });
     });
-
-    const session = engine.createSession();
-    const api = createSessionApi(session);
-
-    // Learn some facts
-    api.learn('@f1 Socrates Is Human');
-    api.learn('@f2 Human Is Mortal');
-
-    // Result should have truth score
-    const result = api.ask('@query @f1 Distance @f2');
-    assert(result.success, 'Should succeed');
-    assert(result.scores.truth >= 0 && result.scores.truth <= 1, 'Truth should be in [0,1]');
-
-    engine.shutdown();
   });
-});
+}
 
-// ============== SUMMARY ==============
+// Run a suite
+async function runSuite(suiteName, suite) {
+  console.log('');
+  console.log(`${c.bright}${c.blue}▶ ${suite.name}${c.reset}`);
+  console.log(`${c.dim}  Files: ${suite.files.join(', ')}${c.reset}`);
+  console.log(`${c.dim}  Specs: ${suite.specs.join(', ')}${c.reset}`);
+  console.log('');
 
-console.log('\n' + '='.repeat(50));
-console.log(`Tests: ${passed + failed} total, ${passed} passed, ${failed} failed`);
+  const results = [];
 
-if (failures.length > 0) {
-  console.log('\nFailures:');
-  for (const f of failures) {
-    console.log(`  - ${f.name}: ${f.error.message}`);
+  for (const file of suite.files) {
+    const result = await runTestFile(file);
+    results.push(result);
+
+    // Show file result
+    if (result.success) {
+      console.log(`  ${c.green}✓${c.reset} ${file} ${c.dim}(${result.passed} passed)${c.reset}`);
+    } else {
+      console.log(`  ${c.red}✗${c.reset} ${file} ${c.dim}(${result.passed} passed, ${result.failed} failed)${c.reset}`);
+      if (options.verbose && result.output) {
+        console.log(result.output);
+      }
+    }
   }
+
+  return results;
+}
+
+// Main
+async function main() {
+  console.log('');
+  console.log(`${c.bright}╔══════════════════════════════════════════════════════════╗${c.reset}`);
+  console.log(`${c.bright}║              SPOCK GOS - TEST SUITE                       ║${c.reset}`);
+  console.log(`${c.bright}╚══════════════════════════════════════════════════════════╝${c.reset}`);
+
+  const startTime = Date.now();
+  let allResults = [];
+
+  // Determine which suites to run
+  let suitesToRun = Object.entries(suites);
+  if (options.suite) {
+    if (!suites[options.suite]) {
+      console.error(`${c.red}Unknown suite: ${options.suite}${c.reset}`);
+      console.log(`Available suites: ${Object.keys(suites).join(', ')}`);
+      process.exit(1);
+    }
+    suitesToRun = [[options.suite, suites[options.suite]]];
+  }
+
+  // Run suites
+  for (const [name, suite] of suitesToRun) {
+    const results = await runSuite(name, suite);
+    allResults = allResults.concat(results);
+  }
+
+  // Calculate totals
+  const totalPassed = allResults.reduce((sum, r) => sum + r.passed, 0);
+  const totalFailed = allResults.reduce((sum, r) => sum + r.failed, 0);
+  const filesRun = allResults.length;
+  const filesFailed = allResults.filter(r => !r.success).length;
+  const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+
+  // Summary
+  console.log('');
+  console.log(`${c.bright}${'═'.repeat(60)}${c.reset}`);
+  console.log(`${c.bright}  SUMMARY${c.reset}`);
+  console.log(`${'═'.repeat(60)}`);
+  console.log('');
+  console.log(`  ${c.cyan}Files:${c.reset}   ${filesRun} run, ${filesRun - filesFailed} passed, ${filesFailed} failed`);
+  console.log(`  ${c.cyan}Tests:${c.reset}   ${totalPassed + totalFailed} run, ${c.green}${totalPassed} passed${c.reset}, ${totalFailed > 0 ? c.red + totalFailed + ' failed' + c.reset : '0 failed'}`);
+  console.log(`  ${c.cyan}Time:${c.reset}    ${duration}s`);
+  console.log('');
+
+  if (totalFailed > 0) {
+    console.log(`${c.red}${c.bright}Some tests failed!${c.reset}`);
+    console.log('');
+
+    // Show failed files
+    const failedFiles = allResults.filter(r => !r.success);
+    if (failedFiles.length > 0) {
+      console.log(`${c.red}Failed files:${c.reset}`);
+      for (const f of failedFiles) {
+        console.log(`  - ${f.file}`);
+      }
+    }
+
+    process.exit(1);
+  } else {
+    console.log(`${c.green}${c.bright}All tests passed!${c.reset}`);
+    process.exit(0);
+  }
+}
+
+main().catch(err => {
+  console.error(`${c.red}Error: ${err.message}${c.reset}`);
   process.exit(1);
-}
-
-console.log('\nAll tests passed!');
-process.exit(0);
+});

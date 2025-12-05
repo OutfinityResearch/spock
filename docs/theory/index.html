@@ -1,0 +1,295 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Theory – Spock AGISystem2</title>
+  <link rel="stylesheet" href="../reference/style.css">
+  <style>
+    .theory-hero {
+      background: linear-gradient(135deg, #1976d2 0%, #0d47a1 100%);
+      color: white;
+      padding: 40px;
+      border-radius: 12px;
+      margin: 20px 0;
+      text-align: center;
+    }
+    .theory-hero h2 {
+      color: white;
+      border: none;
+      margin: 0 0 15px 0;
+      font-size: 2em;
+    }
+    .theory-hero p {
+      font-size: 1.2em;
+      opacity: 0.95;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    .concept-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 25px;
+      margin: 30px 0;
+    }
+    .concept-card {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      border-top: 4px solid #1976d2;
+      transition: transform 0.2s;
+    }
+    .concept-card:hover {
+      transform: translateY(-5px);
+    }
+    .concept-card h3 {
+      margin-top: 0;
+      color: #1976d2;
+    }
+    .concept-card h3 a {
+      color: inherit;
+      text-decoration: none;
+    }
+    .concept-card h3 a:hover {
+      text-decoration: underline;
+    }
+    .concept-card .icon {
+      font-size: 2.5em;
+      margin-bottom: 10px;
+    }
+    .key-insight {
+      background: #fff8e1;
+      border-left: 4px solid #ffc107;
+      padding: 20px;
+      margin: 25px 0;
+      border-radius: 0 8px 8px 0;
+    }
+    .key-insight strong {
+      color: #f57c00;
+    }
+    .svg-diagram {
+      text-align: center;
+      margin: 30px 0;
+      padding: 20px;
+      background: #fafafa;
+      border-radius: 12px;
+    }
+    .page-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 20px 0;
+    }
+    .page-links a {
+      background: #e3f2fd;
+      padding: 8px 16px;
+      border-radius: 20px;
+      text-decoration: none;
+      color: #1976d2;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    .page-links a:hover {
+      background: #bbdefb;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+  <div class="nav-header">
+    <h1>Spock AGISystem2 – Foundational Theory</h1>
+    <small>
+      <a href="../index.html">Home</a> ·
+      <a href="../architecture/index.html">Architecture</a> ·
+      <a href="index.html">Theory</a> ·
+      <a href="../syntax/index.html">Syntax</a> ·
+      <a href="../api/index.html">APIs</a> ·
+      <a href="../wiki/index.html">Wiki</a>
+    </small>
+    <small>Understanding why geometric reasoning works</small>
+  </div>
+
+  <div class="theory-hero">
+    <h2>Why Does Spock Work?</h2>
+    <p>Spock treats knowledge as geometry. Concepts are points in high-dimensional space, and reasoning is navigation through that space. This isn't just a metaphor—it's a mathematical framework with remarkable properties.</p>
+  </div>
+
+  <h2>Core Theory Pages</h2>
+
+  <div class="concept-cards">
+    <div class="concept-card">
+      <div class="icon">🎯</div>
+      <h3><a href="hyperdimensional.html">Hyperdimensional Computing</a></h3>
+      <p>Why random vectors in 512+ dimensions are almost orthogonal, enabling collision-free concept representation without coordination.</p>
+    </div>
+
+    <div class="concept-card">
+      <div class="icon">⚖️</div>
+      <h3><a href="truth-geometry.html">The Geometry of Truth</a></h3>
+      <p>Truth as a direction, not a boolean. How partial truths, uncertainty, and evidence accumulation emerge from vector alignment.</p>
+    </div>
+
+    <div class="concept-card">
+      <div class="icon">🔗</div>
+      <h3><a href="vsa-operations.html">Vector Symbolic Operations</a></h3>
+      <p>The three fundamental operations—Add, Bind, Negate—and how they compose to represent complex knowledge structures.</p>
+    </div>
+
+    <div class="concept-card">
+      <div class="icon">🧭</div>
+      <h3><a href="semantic-navigation.html">Semantic Gradient Descent</a></h3>
+      <p>Reasoning as navigation: how the Plan and Solve verbs find paths through conceptual space toward goals.</p>
+    </div>
+
+    <div class="concept-card">
+      <div class="icon">📚</div>
+      <h3><a href="theory-spaces.html">Theories as Subspaces</a></h3>
+      <p>How theories create local contexts, overlay mechanics, and geometric merge strategies for version control.</p>
+    </div>
+
+    <div class="concept-card">
+      <div class="icon">🔍</div>
+      <h3><a href="explainability.html">Native Explainability</a></h3>
+      <p>DSL-In/DSL-Out principle: every computation is traceable, replayable, and auditable.</p>
+    </div>
+  </div>
+
+  <h2>The Central Insight</h2>
+
+  <div class="key-insight">
+    <strong>The Miracle of High Dimensionality:</strong> In spaces with 512+ dimensions, randomly generated vectors are almost certainly orthogonal to each other. This means you can create millions of distinct concepts without any coordination—just generate random vectors, and they're guaranteed to be unique.
+  </div>
+
+  <div class="svg-diagram">
+    <svg width="600" height="300" viewBox="0 0 600 300">
+      <!-- Background -->
+      <rect width="600" height="300" fill="#fafafa"/>
+
+      <!-- Title -->
+      <text x="300" y="30" text-anchor="middle" font-size="16" font-weight="bold" fill="#1976d2">Quasi-Orthogonality in High Dimensions</text>
+
+      <!-- Low dimension illustration -->
+      <g transform="translate(100, 150)">
+        <text x="0" y="-80" text-anchor="middle" font-size="12" fill="#666">2D Space</text>
+        <circle cx="0" cy="0" r="60" fill="none" stroke="#ddd" stroke-width="2"/>
+        <line x1="0" y1="0" x2="50" y2="-35" stroke="#e53935" stroke-width="3"/>
+        <line x1="0" y1="0" x2="40" y2="45" stroke="#43a047" stroke-width="3"/>
+        <line x1="0" y1="0" x2="-55" y2="20" stroke="#1976d2" stroke-width="3"/>
+        <circle cx="50" cy="-35" r="5" fill="#e53935"/>
+        <circle cx="40" cy="45" r="5" fill="#43a047"/>
+        <circle cx="-55" cy="20" r="5" fill="#1976d2"/>
+        <text x="0" y="90" text-anchor="middle" font-size="11" fill="#666">Vectors often overlap</text>
+        <text x="0" y="105" text-anchor="middle" font-size="11" fill="#666">(high correlation)</text>
+      </g>
+
+      <!-- Arrow -->
+      <g transform="translate(250, 150)">
+        <line x1="0" y1="0" x2="80" y2="0" stroke="#999" stroke-width="2" marker-end="url(#arrowhead)"/>
+        <text x="40" y="-10" text-anchor="middle" font-size="11" fill="#666">Add dimensions</text>
+      </g>
+
+      <!-- High dimension illustration -->
+      <g transform="translate(450, 150)">
+        <text x="0" y="-80" text-anchor="middle" font-size="12" fill="#666">512D Space</text>
+        <circle cx="0" cy="0" r="60" fill="none" stroke="#ddd" stroke-width="2"/>
+        <!-- Many vectors pointing in different directions -->
+        <line x1="0" y1="0" x2="58" y2="-15" stroke="#e53935" stroke-width="2"/>
+        <line x1="0" y1="0" x2="-10" y2="58" stroke="#43a047" stroke-width="2"/>
+        <line x1="0" y1="0" x2="-55" y2="-25" stroke="#1976d2" stroke-width="2"/>
+        <line x1="0" y1="0" x2="25" y2="-55" stroke="#9c27b0" stroke-width="2"/>
+        <line x1="0" y1="0" x2="-45" y2="40" stroke="#ff9800" stroke-width="2"/>
+        <line x1="0" y1="0" x2="50" y2="35" stroke="#00bcd4" stroke-width="2"/>
+        <circle cx="58" cy="-15" r="4" fill="#e53935"/>
+        <circle cx="-10" cy="58" r="4" fill="#43a047"/>
+        <circle cx="-55" cy="-25" r="4" fill="#1976d2"/>
+        <circle cx="25" cy="-55" r="4" fill="#9c27b0"/>
+        <circle cx="-45" cy="40" r="4" fill="#ff9800"/>
+        <circle cx="50" cy="35" r="4" fill="#00bcd4"/>
+        <text x="0" y="90" text-anchor="middle" font-size="11" fill="#666">Vectors nearly orthogonal</text>
+        <text x="0" y="105" text-anchor="middle" font-size="11" fill="#666">(correlation ≈ 0)</text>
+      </g>
+
+      <!-- Arrow marker -->
+      <defs>
+        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#999"/>
+        </marker>
+      </defs>
+
+      <!-- Stats -->
+      <text x="300" y="270" text-anchor="middle" font-size="12" fill="#1976d2">
+        P(|correlation| > 0.2) &lt; 0.003% for random 512D vectors
+      </text>
+    </svg>
+  </div>
+
+  <h2>Quick Navigation</h2>
+  <div class="page-links">
+    <a href="hyperdimensional.html">Hyperdimensional Computing</a>
+    <a href="truth-geometry.html">Truth Geometry</a>
+    <a href="vsa-operations.html">VSA Operations</a>
+    <a href="semantic-navigation.html">Semantic Navigation</a>
+    <a href="theory-spaces.html">Theory Spaces</a>
+    <a href="explainability.html">Explainability</a>
+  </div>
+
+  <h2>Mathematical Foundations</h2>
+  <table class="matrix-table">
+    <tr>
+      <th>Concept</th>
+      <th>Mathematical Basis</th>
+      <th>Practical Implication</th>
+    </tr>
+    <tr>
+      <td>Quasi-orthogonality</td>
+      <td>Johnson-Lindenstrauss lemma: random projections preserve distances</td>
+      <td>Concepts can be generated without global coordination</td>
+    </tr>
+    <tr>
+      <td>Measure concentration</td>
+      <td>In high-D, most volume is near the surface of hyperspheres</td>
+      <td>Normalized vectors have stable, predictable norms</td>
+    </tr>
+    <tr>
+      <td>Cosine similarity</td>
+      <td>cos(θ) = ⟨a,b⟩ / (‖a‖·‖b‖) measures directional alignment</td>
+      <td>Truth degrees are angles, not discrete values</td>
+    </tr>
+    <tr>
+      <td>Superposition</td>
+      <td>Vector addition creates weighted mixtures</td>
+      <td>Evidence from multiple sources accumulates naturally</td>
+    </tr>
+    <tr>
+      <td>Binding</td>
+      <td>Hadamard product creates dissimilar, reversible combinations</td>
+      <td>Relationships can be encoded and decoded</td>
+    </tr>
+  </table>
+
+  <h2>Why This Matters for AGI</h2>
+  <div class="section-intro">
+    <p><strong>Spock AGISystem2</strong> bridges the gap between neural flexibility and symbolic rigor. Unlike pure neural networks (black boxes) or pure symbolic systems (brittle logic), Spock provides:</p>
+    <ul>
+      <li><strong>Continuous reasoning</strong> – No discrete jumps; smooth transitions through concept space</li>
+      <li><strong>Compositional structure</strong> – Complex knowledge built from simple operations</li>
+      <li><strong>Native uncertainty</strong> – Partial truths and degrees of belief are geometric, not bolted on</li>
+      <li><strong>Full explainability</strong> – Every step is a DSL statement that can be replayed</li>
+      <li><strong>Theory modularity</strong> – Knowledge can be organized, versioned, and merged like code</li>
+    </ul>
+  </div>
+
+  <h2>References</h2>
+  <ul>
+    <li>Kanerva, P. (2009). <em>Hyperdimensional Computing: An Introduction</em></li>
+    <li>Plate, T. A. (1995). <em>Holographic Reduced Representations</em></li>
+    <li>Gärdenfors, P. (2000). <em>Conceptual Spaces: The Geometry of Thought</em></li>
+    <li>Gayler, R. W. (2004). <em>Vector Symbolic Architectures Answer Jackendoff's Challenges</em></li>
+  </ul>
+
+  <div class="footer-nav">
+    <p><strong>Next:</strong> <a href="hyperdimensional.html">Hyperdimensional Computing →</a></p>
+  </div>
+  </div>
+</body>
+</html>

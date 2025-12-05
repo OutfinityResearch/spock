@@ -1,0 +1,24 @@
+@NumericExamples theory begin
+    # Compute speed from distance and time, add unit
+    @ComputeSpeed verb begin
+        @speedRaw $subject DivNumeric $object
+        @result $speedRaw AttachUnit m_per_s
+    end
+
+    # Simple addition of two numeric values
+    @ComputeTotal verb begin
+        @result $subject AddNumeric $object
+    end
+
+    # Force = mass * acceleration
+    @ComputeForce verb begin
+        @result $subject MulNumeric $object
+    end
+
+    # Average of two numeric values
+    @Average verb begin
+        @sum $subject AddNumeric $object
+        @two 2 HasNumericValue 2
+        @result $sum DivNumeric $two
+    end
+end

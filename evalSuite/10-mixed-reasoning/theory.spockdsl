@@ -1,0 +1,24 @@
+@MixedReasoning theory begin
+    # Generic plan step representation
+    @PlanStep verb begin
+        @step $subject Bind $object
+        @result $step Move $subject
+    end
+
+    # Combine multiple plan steps
+    @PlanSequence verb begin
+        @chain $subject Add $object
+        @result $chain Normalise $chain
+    end
+
+    # Numeric energy cost (mass * effort)
+    @EnergyCost verb begin
+        @result $subject MulNumeric $object
+    end
+
+    # Validate by projecting onto Truth
+    @Validate verb begin
+        @score $subject Distance $object
+        @result Truth Modulate $score
+    end
+end
